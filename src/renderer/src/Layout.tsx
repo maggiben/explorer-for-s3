@@ -1,7 +1,9 @@
 import React from 'react';
 import { LaptopOutlined, NotificationOutlined, UserOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
-import { Breadcrumb, Layout, Menu, theme, Avatar, Space } from 'antd';
+import { Breadcrumb, Layout, Menu, theme, Avatar, Space, ConfigProvider } from 'antd';
+import { useAtomValue } from 'jotai';
+import { themeAtom } from './atoms/theme';
 
 const { Header, Content, Sider } = Layout;
 
@@ -35,59 +37,64 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const [collapsed, setCollapsed] = React.useState(true);
+  const appTheme = useAtomValue(themeAtom);
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
   return (
-    <Layout style={{ minHeight: '100vh', minWidth: '100vw' }}>
-      <Header style={{ padding: '0 10px' }}>
-        <Space>
-          <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#87d068' }}></Avatar>
-          <Menu
-            theme="dark"
-            mode="horizontal"
-            defaultSelectedKeys={['2']}
-            items={items1}
-            style={{ flex: 1, minWidth: 0 }}
-          />
-        </Space>
-      </Header>
-      <Layout>
-        <Sider
-          width={200}
-          theme="light"
-          style={{ background: colorBgContainer }}
-          collapsible
-          collapsed={collapsed}
-          onCollapse={(value) => setCollapsed(value)}
-        >
-          <Menu
-            mode="inline"
-            defaultSelectedKeys={['1']}
-            defaultOpenKeys={[]}
-            style={{ height: '100%', borderInlineEnd: 0 }}
-            items={items2}
-          />
-        </Sider>
-        <Layout style={{ padding: '0 24px 24px' }}>
-          <Breadcrumb
-            items={[{ title: 'Home' }, { title: 'List' }, { title: 'App' }]}
-            style={{ margin: '16px 0' }}
-          />
-          <Content
-            style={{
-              padding: 24,
-              margin: 0,
-              minHeight: 280,
-              background: colorBgContainer,
-              borderRadius: borderRadiusLG,
-            }}
+    <ConfigProvider
+      theme={appTheme}
+    >
+      <Layout style={{ minHeight: '100vh', minWidth: '100vw' }}>
+        <Header style={{ padding: '0 10px' }}>
+          <Space>
+            <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#c28616' }}></Avatar>
+            <Menu
+              theme="dark"
+              mode="horizontal"
+              defaultSelectedKeys={['2']}
+              items={items1}
+              style={{ flex: 1, minWidth: 0 }}
+            />
+          </Space>
+        </Header>
+        <Layout>
+          <Sider
+            width={200}
+            theme="light"
+            style={{ background: colorBgContainer }}
+            collapsible
+            collapsed={collapsed}
+            onCollapse={(value) => setCollapsed(value)}
           >
-            Content: {children}
-          </Content>
+            <Menu
+              mode="inline"
+              defaultSelectedKeys={['1']}
+              defaultOpenKeys={[]}
+              style={{ height: '100%', borderInlineEnd: 0 }}
+              items={items2}
+            />
+          </Sider>
+          <Layout style={{ padding: '0 24px 24px' }}>
+            <Breadcrumb
+              items={[{ title: 'Home' }, { title: 'List' }, { title: 'App' }]}
+              style={{ margin: '16px 0' }}
+            />
+            <Content
+              style={{
+                padding: 24,
+                margin: 0,
+                minHeight: 280,
+                background: colorBgContainer,
+                borderRadius: borderRadiusLG,
+              }}
+            >
+              {children}
+            </Content>
+          </Layout>
         </Layout>
       </Layout>
-    </Layout>
+    </ConfigProvider>
   );
 }

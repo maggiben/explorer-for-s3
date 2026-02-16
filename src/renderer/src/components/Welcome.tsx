@@ -6,7 +6,7 @@ export default function Welcome() {
   return (
     <>
       <Title>Hello World</Title>
-      <Button onClick={() => ipcHandle()}>Click Me</Button>
+      <Button type="primary" onClick={() => ipcHandle()}>Click Me</Button>
       <br />
       <br />
       <Versions />

@@ -1,7 +1,7 @@
 import path from 'path';
 import { app } from 'electron';
 import { Sequelize } from 'sequelize';
-import { DATABASE_FILENAME } from '@shared/constants/config';
+import { DATABASE_FILENAME } from '../../shared/constants/config';
 
 export const DATABASE_PATH = path.join(app.getPath('userData'), DATABASE_FILENAME);
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LaptopOutlined, NotificationOutlined, UserOutlined } from '@ant-design/icons';
+import { LaptopOutlined, NotificationOutlined, UserOutlined, FolderOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { Breadcrumb, Layout, Menu, theme, Avatar, Space, ConfigProvider } from 'antd';
 import { useAtomValue } from 'jotai';
@@ -12,14 +12,14 @@ const items1: MenuProps['items'] = ['1', '2', '3'].map((key) => ({
   label: `nav ${key}`,
 }));
 
-const items2: MenuProps['items'] = [UserOutlined, LaptopOutlined, NotificationOutlined].map(
+const items2: MenuProps['items'] = [FolderOutlined, FolderOutlined, FolderOutlined].map(
   (icon, index) => {
     const key = String(index + 1);
 
     return {
       key: `sub${key}`,
       icon: React.createElement(icon),
-      label: `subnav ${key}`,
+      label: `Folder ${key}`,
       children: Array.from({ length: 4 }).map((_, j) => {
         const subKey = index * 4 + j + 1;
         return {
@@ -30,6 +30,23 @@ const items2: MenuProps['items'] = [UserOutlined, LaptopOutlined, NotificationOu
     };
   },
 );
+
+const settings: MenuProps['items'] = [UserOutlined].map((icon, index) => {
+  const key = String(index + 1);
+
+  return {
+    key: `sub${key}`,
+    icon: React.createElement(icon),
+    label: `subnav ${key}`,
+    children: Array.from({ length: 4 }).map((_, j) => {
+      const subKey = index * 4 + j + 1;
+      return {
+        key: subKey,
+        label: `option${subKey}`,
+      };
+    }),
+  };
+});
 
 export default function RootLayout({
   children,
@@ -43,22 +60,8 @@ export default function RootLayout({
   } = theme.useToken();
 
   return (
-    <ConfigProvider
-      theme={appTheme}
-    >
+    <ConfigProvider theme={appTheme}>
       <Layout style={{ minHeight: '100vh', minWidth: '100vw' }}>
-        <Header style={{ padding: '0 10px' }}>
-          <Space>
-            <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#c28616' }}></Avatar>
-            <Menu
-              theme="dark"
-              mode="horizontal"
-              defaultSelectedKeys={['2']}
-              items={items1}
-              style={{ flex: 1, minWidth: 0 }}
-            />
-          </Space>
-        </Header>
         <Layout>
           <Sider
             width={200}
@@ -68,13 +71,29 @@ export default function RootLayout({
             collapsed={collapsed}
             onCollapse={(value) => setCollapsed(value)}
           >
-            <Menu
-              mode="inline"
-              defaultSelectedKeys={['1']}
-              defaultOpenKeys={[]}
-              style={{ height: '100%', borderInlineEnd: 0 }}
-              items={items2}
-            />
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                height: '100%',
+              }}
+            >
+              <Menu
+                mode="inline"
+                defaultSelectedKeys={['1']}
+                defaultOpenKeys={[]}
+                style={{ height: '100%', borderInlineEnd: 0 }}
+                items={items2}
+              />
+              <Menu
+                mode="inline"
+                defaultSelectedKeys={['1']}
+                defaultOpenKeys={[]}
+                style={{ height: '100%', borderInlineEnd: 0, alignContent: 'end' }}
+                items={settings}
+              />
+            </div>
           </Sider>
           <Layout style={{ padding: '0 24px 24px' }}>
             <Breadcrumb

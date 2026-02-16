@@ -7,6 +7,7 @@
     "baseUrl": ".",
     "paths": {
       "@main/*": ["src/main/*"],
+      "@common/*": ["src/main/common/*"],
       "types/*": ["src/types/*"],
       "@shared/*": ["src/shared/*"],
       "@locale/*": ["src/shared/locale/*"],

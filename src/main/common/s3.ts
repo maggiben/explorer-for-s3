@@ -9,15 +9,16 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl as awsGetSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Upload } from '@aws-sdk/lib-storage';
-import * as OBJECT_TYPE from '@shared/constants/object-type';
-const ObjectModel = require('../models/data/object-model');
-
+import * as OBJECT_TYPE from '../../shared/constants/object-type';
+import { init, get } from '../ipc/settings';
 
 /**
  * Sync all objects on S3 to local database.
  * @returns {Promise<void>}
  */
 export async function syncObjectsFromS3() {
+  await init();
+  const settings = await get();
   const start = new Date();
   const client = new S3Client({
     region: settings.region,
@@ -34,57 +35,67 @@ export async function syncObjectsFromS3() {
         ContinuationToken: continuationToken,
       }),
     );
-    const convertS3Object = ({ Key, Size, LastModified, StorageClass }) => ({
-      type: Key.slice(-1) === '/' ? OBJECT_TYPE.FOLDER : OBJECT_TYPE.FILE,
+    const convertS3Object = ({
+      Key,
+      Size,
+      LastModified,
+      StorageClass,
+    }: {
+      Key?: string;
+      Size?: number;
+      LastModified?: Date;
+      StorageClass?: string;
+    }) => ({
+      type: Key?.slice(-1) === '/' ? OBJECT_TYPE.FOLDER : OBJECT_TYPE.FILE,
       path: Key,
-      lastModified: LastModified,
-      size: Size,
-      storageClass: StorageClass,
+      lastModified: LastModified ?? new Date(0), // default date if missing
+      size: Size ?? 0, // default size if missing
+      storageClass: StorageClass ?? 'STANDARD', // default storage class if missing
     });
 
-    await Promise.all([
-      result.Contents
-        ? ObjectModel.bulkCreate(
-            result.Contents.map((content) => {
-              const pieces = content.Key?.split('/').slice(0, -1) ? [];
+    const cosas = await Promise.all([
+      result?.Contents?.map((content) => {
+        const pieces = content.Key?.split('/').slice(0, -1) ?? [];
 
-              return [
-                convertS3Object(content),
-                ...pieces.map((piece, index) =>
-                  convertS3Object({
-                    Key: `${pieces.slice(0, index + 1).join('/')}/`,
-                  }),
-                ),
-              ];
-            })
-              .flat()
-              .filter((object) => {
-                if (object.type === OBJECT_TYPE.FILE) {
-                  pathSet.add(object.path);
-                  return true;
-                }
+        return [
+          convertS3Object(content),
+          ...pieces.map((_, index) =>
+            convertS3Object({
+              Key: `${pieces.slice(0, index + 1).join('/')}/`,
+            }),
+          ),
+        ];
+      })
+        .flat()
+        .filter((object) => {
+          if (!object) return;
+          if (object.type === OBJECT_TYPE.FILE) {
+            pathSet.add(object.path);
+            return true;
+          }
 
-                if (pathSet.has(object.path)) {
-                  return false;
-                }
+          if (pathSet.has(object.path)) {
+            return false;
+          }
 
-                pathSet.add(object.path);
-                return true;
-              }),
-            { updateOnDuplicate: ['type', 'lastModified', 'size', 'updatedAt', 'storageClass'] },
-          )
-        : null,
+          pathSet.add(object.path);
+          return true;
+        }),
+      { updateOnDuplicate: ['type', 'lastModified', 'size', 'updatedAt', 'storageClass'] },
       result.NextContinuationToken ? scanObjects(result.NextContinuationToken) : null,
     ]);
+
+    console.log('cosas', cosas);
   };
 
   await scanObjects();
 
-  // Remove missing objects.
-  await ObjectModel.destroy({
-    where: { updatedAt: { [Op.lt]: start } },
-  });
-};
+  return [];
+  // // Remove missing objects.
+  // await ObjectModel.destroy({
+  //   where: { updatedAt: { [Op.lt]: start } },
+  // });
+}
 
 /**
  * https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-s3/classes/headobjectcommand.html
@@ -93,6 +104,8 @@ export async function syncObjectsFromS3() {
  * @returns {Promise<HeadObjectCommandOutput>}
  */
 export async function headObject(path, options) {
+  await init();
+  const settings = await get();
   const client = new S3Client({
     region: settings.region,
     credentials: {
@@ -107,7 +120,7 @@ export async function headObject(path, options) {
   });
 
   return client.send(headObjectCommand);
-};
+}
 
 /**
  * @param {string} path
@@ -115,6 +128,8 @@ export async function headObject(path, options) {
  * @returns {Promise<string>}
  */
 export async function getSignedUrl(path, { expiresIn = 24 * 60 * 60 } = {}) {
+  await init();
+  const settings = await get();
   const client = new S3Client({
     region: settings.region,
     credentials: {
@@ -128,7 +143,7 @@ export async function getSignedUrl(path, { expiresIn = 24 * 60 * 60 } = {}) {
   });
 
   return awsGetSignedUrl(client, getObjectCommand, { expiresIn });
-};
+}
 
 /**
  * https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-s3/classes/getobjectcommand.html
@@ -136,6 +151,8 @@ export async function getSignedUrl(path, { expiresIn = 24 * 60 * 60 } = {}) {
  * @returns {Promise<GetObjectCommandOutput>}
  */
 export async function getObject(path) {
+  await init();
+  const settings = await get();
   const client = new S3Client({
     region: settings.region,
     credentials: {
@@ -158,6 +175,8 @@ export async function getObject(path) {
  * @returns {Promise<PutObjectCommandOutput>}
  */
 export async function putObject(path, options = {}) {
+  await init();
+  const settings = await get();
   const client = new S3Client({
     region: settings.region,
     credentials: {
@@ -173,7 +192,7 @@ export async function putObject(path, options = {}) {
   });
 
   return client.send(putObjectCommand);
-};
+}
 
 /**
  * @param {string} path
@@ -183,6 +202,8 @@ export async function putObject(path, options = {}) {
  * @returns {Promise<CompleteMultipartUploadCommandOutput | AbortMultipartUploadCommandOutput>}
  */
 export async function upload({ path, content, options, onProgress }) {
+  await init();
+  const settings = await get();
   const client = new S3Client({
     region: settings.region,
     credentials: {
@@ -213,6 +234,8 @@ export async function upload({ path, content, options, onProgress }) {
  * @returns {Promise<DeleteObjectsCommandOutput>}
  */
 export async function deleteObjects(paths: string[]) {
+  await init();
+  const settings = await get();
   const client = new S3Client({
     region: settings.region,
     credentials: {

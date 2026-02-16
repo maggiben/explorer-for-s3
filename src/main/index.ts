@@ -2,6 +2,9 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron';
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
+// import Settings from './models/data/settings-model';
+// import { MAIN_SETTINGS_ID } from '../shared/constants/settings';
+import './ipc';
 
 function createWindow(): void {
   // Create the browser window.
@@ -47,6 +50,14 @@ app.whenReady().then(() => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron');
 
+  // Settings.findOne({ where: { id: MAIN_SETTINGS_ID } })
+  //   .then(async (setting) => {
+  //     console.log(setting?.toJSON());
+  //     // await syncObjectsFromS3();
+  //   })
+  //   .catch((error) => console.error(error));
+
+  // console.log(settings?.toJSON());
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils

@@ -54,7 +54,7 @@ export async function upsert({
   region,
   bucket,
 }: {
-  id: number;
+  id?: number;
   accessKeyId: string;
   secretAccessKey: string;
   region: string;
@@ -79,14 +79,15 @@ export async function upsert({
   }
 }
 
-export async function get(id: number): Promise<ReturnType<Connections['toJSON']> | undefined> {
+// eslint-disable-next-line prettier/prettier
+export async function get(id: number, json = true): Promise<ReturnType<Connections['toJSON']> | Connections | undefined> {
   try {
     const settings = await Connections.findOne({ where: { id } });
 
     if (!settings) {
       throw new Error('failed to get bucket');
     }
-    return settings.toJSON();
+    return json ? settings.toJSON() : settings;
   } catch (error) {
     console.error(error);
     return undefined;

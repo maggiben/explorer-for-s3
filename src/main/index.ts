@@ -1,4 +1,5 @@
-import { app, shell, BrowserWindow, ipcMain, contextBridge } from 'electron';
+import { app, shell, BrowserWindow, ipcMain, Tray, Menu } from 'electron';
+import { nativeImage } from 'electron/common';
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
@@ -43,10 +44,17 @@ function createWindow(): void {
   }
 }
 
+const icon2 = nativeImage.createFromDataURL(
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAACTSURBVHgBpZKBCYAgEEV/TeAIjuIIbdQIuUGt0CS1gW1iZ2jIVaTnhw+Cvs8/OYDJA4Y8kR3ZR2/kmazxJbpUEfQ/Dm/UG7wVwHkjlQdMFfDdJMFaACebnjJGyDWgcnZu1/lrCrl6NCoEHJBrDwEr5NrT6ko/UV8xdLAC2N49mlc5CylpYh8wCwqrvbBGLoKGvz8Bfq0QPWEUo/EAAAAASUVORK5CYII=',
+);
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  const tray = new Tray(icon2);
+  const contextMenu = Menu.buildFromTemplate([{ role: 'quit' }]);
+  tray.setContextMenu(contextMenu);
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron');
 

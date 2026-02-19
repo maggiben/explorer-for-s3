@@ -9,51 +9,20 @@ import {
 } from '@ant-design/icons';
 import { Routes, Route, HashRouter, Link } from 'react-router';
 import type { MenuProps } from 'antd';
-import { ConfigProvider, Breadcrumb, Layout, Menu, theme, Avatar, Space } from 'antd';
+import { ConfigProvider, Breadcrumb, Layout, Menu } from 'antd';
 import type { SiderTheme } from 'antd/es/layout/Sider';
 import { useAtomValue } from 'jotai';
 import { themeAtom } from './atoms/theme';
 import useRecent from './hooks/useRecent';
 
-import NewBucket from './components/NewBucket';
+import Connection from './components/Connection/Connection';
+import Browser from './components/Browser/Browser';
 import Welcome from './components/Welcome';
 
 const { Header, Content, Sider } = Layout;
 
-const items2: MenuProps['items'] = [
-  {
-    icon: ClockCircleOutlined,
-    label: 'Recent',
-  },
-  {
-    icon: HeartOutlined,
-    label: 'Favourites',
-  },
-  {
-    icon: HddOutlined,
-    label: 'Buckets',
-  },
-].map(({ icon, label }, index) => {
-  const key = String(index + 1);
-
-  return {
-    key: `sub${key}`,
-    icon: React.createElement(icon),
-    label,
-    children: Array.from({ length: 4 }).map((_, j) => {
-      const subKey = index * 4 + j + 1;
-      return {
-        key: subKey,
-        label: `option${subKey}`,
-        icon: React.createElement(FolderOutlined),
-      };
-    }),
-  };
-});
-
 const settings: MenuProps['items'] = [UserOutlined].map((icon, index) => {
   const key = String(index + 1);
-
   return {
     key: `sub${key}`,
     icon: React.createElement(icon),
@@ -68,7 +37,7 @@ const settings: MenuProps['items'] = [UserOutlined].map((icon, index) => {
   };
 });
 
-function createRecentMenu(connections: { bucket: string; id: number; }[]): MenuProps['items'] {
+function createRecentMenu(connections: { bucket: string; id: number }[]): MenuProps['items'] {
   const menu = [
     {
       icon: ClockCircleOutlined,
@@ -97,7 +66,7 @@ export default function RootLayout({
 }>) {
   const [collapsed, setCollapsed] = React.useState(true);
   const { apparence } = useAtomValue(themeAtom);
-  const recent = useRecent();
+  const [recent] = useRecent();
   console.log('recent', recent);
   // const [xxxa, setxxxa] = useAtom(asyncStrAtom);
 
@@ -159,8 +128,10 @@ export default function RootLayout({
               <Content>
                 <Routes>
                   <Route index path="/" element={<Welcome />} />
-                  <Route path="/new" element={<NewBucket />} />
-                  <Route path="/new/:id" element={<NewBucket />} />
+                  <Route path="/new" element={<Connection />} />
+                  <Route path="/new/:id" element={<Connection />} />
+                  <Route path="/browse" element={<Browser />} />
+                  <Route path="/browse/:id" element={<Browser />} />
                   <Route path="/motd" element={children} />
                 </Routes>
               </Content>

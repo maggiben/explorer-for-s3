@@ -1,10 +1,11 @@
 import os from 'os';
-import { ipcMain, IpcMainInvokeEvent } from 'electron';
+import { ipcMain, IpcMainInvokeEvent, nativeTheme } from 'electron';
 import ipc from '../../shared/constants/ipc';
 import * as Settings from '../ipc/settings';
 import SettingsModel from '../models/data/settings-model';
 import * as Buckets from '../ipc/buckets';
 import * as Connections from '../ipc/connections';
+import { syncObjectsFromS3 } from '../../main/common/s3';
 
 type TBucketCommands = 'buckets:add' | 'buckets:getAll';
 type TConnectionCommands = 'connections:add' | 'connections:getAll';
@@ -45,6 +46,20 @@ interface IMessage {
                       ack: new Date().getTime(),
                     };
                   }
+                  case 'upsert': {
+                    try {
+                      if (!arg.connection) break;
+                      const result = await Connections.upsert(arg.connection);
+                      if (!result) break;
+                      return {
+                        result,
+                        ack: new Date().getTime(),
+                      };
+                    } catch (error) {
+                      console.error(error);
+                      break;
+                    }
+                  }
                   case 'get': {
                     try {
                       if (!arg.id) break;
@@ -80,6 +95,15 @@ interface IMessage {
                       ack: new Date().getTime(),
                     };
                   }
+                  case 'connect': {
+                    try {
+                      const result = await syncObjectsFromS3(arg.id);
+                      return result;
+                    } catch (error) {
+                      console.error(error);
+                      break;
+                    }
+                  }
                   default:
                     console.log('bad action');
                     break;
@@ -111,6 +135,27 @@ interface IMessage {
                     if (!arg.settings) break;
                     const settings = await Settings.upsert(arg.settings);
                     return settings;
+                  }
+                  default:
+                    console.log('bad action');
+                    break;
+                }
+                break;
+              }
+              case 'apparence': {
+                switch (action) {
+                  case 'toggle': {
+                    if (nativeTheme.shouldUseDarkColors) {
+                      nativeTheme.themeSource = 'light';
+                    } else {
+                      nativeTheme.themeSource = 'dark';
+                    }
+                    return nativeTheme.shouldUseDarkColors;
+                    break;
+                  }
+                  case 'system': {
+                    nativeTheme.themeSource = 'system';
+                    break;
                   }
                   default:
                     console.log('bad action');

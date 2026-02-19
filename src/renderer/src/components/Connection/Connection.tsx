@@ -1,18 +1,20 @@
 import type { FormProps } from 'antd';
+import { useNavigate, useParams } from 'react-router';
+import { useEffect, useState } from 'react';
 import { Button, Typography, Checkbox, Form, Input, Select, Space } from 'antd';
 import Icon from '@ant-design/icons';
 import { connectionAtom } from '@renderer/atoms/connection';
 import { useAtom } from 'jotai';
-import { recentAtom } from '@renderer/atoms/recent';
-import ipc from '../../../shared/constants/ipc';
-import regions from '../../../shared/constants/regions.json';
-import s3Icon from '../assets/icons/s3.svg?react';
-import { useParams } from 'react-router';
-import { useEffect } from 'react';
+import ipc from '../../../../shared/constants/ipc';
+import regions from '../../../../shared/constants/regions.json';
+import { getRandomPassword, getRandomRange } from '../../../../shared/lib/utils';
+import s3Icon from '../../assets/icons/s3.svg?react';
+import useRecent from '@renderer/hooks/useRecent';
 
 const { Title } = Typography;
 
 type FieldType = {
+  id?: number;
   accessKeyId: string;
   secretAccessKey: string;
   region: string;
@@ -43,46 +45,53 @@ const onFinishFailed: FormProps<FieldType>['onFinishFailed'] = (errorInfo) => {
   console.log('Failed:', errorInfo);
 };
 
-function randomRange(min: number, max: number) {
-  const minCeiled = Math.ceil(min);
-  const maxFloored = Math.floor(max);
-  return Math.floor(Math.random() * (maxFloored - minCeiled + 1)) + minCeiled;
+async function upsertConnection(connection: FieldType) {
+  try {
+    const payload = {
+      ts: new Date().getTime(),
+      command: connection.id ? 'connections:upsert' : 'connections:add',
+      connection,
+    };
+    const result = window.electron.ipcRenderer.invoke(ipc.MAIN_API, payload, connect);
+    console.log(result);
+    return await result
+      .then(({ results, ack }) => ack && results.shift())
+      .then(({ result, ack }) => ack && result);
+  } catch (error) {
+    console.error(error);
+    return undefined;
+  }
 }
 
-function randomPass(length: number) {
-  return Array.from(
-    { length },
-    () =>
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[
-        Math.floor(Math.random() * 62)
-      ],
-  ).join('');
-}
-
-export default function NewBucket() {
+export default function Connection() {
+  const navigate = useNavigate();
   const [connection, setConnection] = useAtom(connectionAtom);
-  const [recent, setRecent] = useAtom(recentAtom);
+  const [, setRecent] = useRecent();
   const [form] = Form.useForm();
   const params = useParams();
+  const [isEditing, setIsEditing] = useState<boolean>(true);
   const getAll = () =>
     window.electron.ipcRenderer.invoke(ipc.MAIN_API, { command: 'connections:getAll' });
 
   useEffect(() => {
     if (!params.id || !params.id.match(/[0-9]/)) return;
-
+    setIsEditing(false);
     console.log('getId', params.id);
     const get = (id) =>
       window.electron.ipcRenderer.invoke(ipc.MAIN_API, { command: 'connections:get', id });
+
     get(params.id)
       .then(({ results, ack }) => ack && results.shift())
       .then(({ result, ack }) => ack && result)
-      .then((con) => {
+      .then(async (con) => {
         console.log('connnn', con);
         setConnection(con);
-        form.setFieldsValue({
+        await form.resetFields();
+        await form.setFieldsValue({
           ...con,
-          secretAccessKey: randomPass(randomRange(8, 16)),
+          secretAccessKey: getRandomPassword(getRandomRange(8, 16)),
         });
+        // form.
       })
       .catch(console.error);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -104,22 +113,27 @@ export default function NewBucket() {
         // style={{ maxWidth: 600 }}
         initialValues={connection}
         onFinish={async (...args) => {
-          const result = await onFinish(...args);
-          console.log('result', result);
-          if (result) {
-            // setConnection(result);
-            setRecent([...recent, ...[result]]);
+          console.log(args);
+          if (isEditing) {
+            const result = await upsertConnection(...args);
+            console.log('result', result);
+            await setRecent();
           }
+          return navigate(`/browse/${args.shift()?.id}`);
         }}
         onFinishFailed={onFinishFailed}
         autoComplete="off"
       >
+        <Form.Item<FieldType> label="Id" name="id" hidden rules={[{ required: false }]}>
+          <Input />
+        </Form.Item>
+
         <Form.Item<FieldType>
           label="Access Key"
           name="accessKeyId"
           rules={[{ required: true, message: 'Please input your access key!' }]}
         >
-          <Input />
+          <Input disabled={!isEditing} />
         </Form.Item>
 
         <Form.Item<FieldType>
@@ -127,7 +141,7 @@ export default function NewBucket() {
           name="secretAccessKey"
           rules={[{ required: true, message: 'Please input your secret!' }]}
         >
-          <Input.Password />
+          <Input.Password disabled={!isEditing} />
         </Form.Item>
 
         <Form.Item<FieldType>
@@ -140,6 +154,7 @@ export default function NewBucket() {
               filterOption: (input, option) =>
                 (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
             }}
+            disabled={!isEditing}
             placeholder="Select a person"
             options={regions.map((region) => ({
               value: region.code,
@@ -153,28 +168,55 @@ export default function NewBucket() {
           name="bucket"
           rules={[{ required: true, message: 'Please input your bucket!' }]}
         >
-          <Input />
+          <Input disabled={!isEditing} />
         </Form.Item>
 
         <Form.Item<FieldType> name="remember" valuePropName="checked" label={null}>
-          <Checkbox>Remember me</Checkbox>
+          <Checkbox disabled={!isEditing}>Remember me</Checkbox>
         </Form.Item>
 
         <Form.Item label={null}>
-          <Button type="primary" htmlType="submit">
-            Connect
-          </Button>
-        </Form.Item>
+          <Space align="center">
+            <Button type="primary" htmlType="submit">
+              Connect
+            </Button>
 
-        <Form.Item label={null}>
-          <Button
-            onClick={async () => {
-              const result = await getAll();
-              console.log(result);
-            }}
-          >
-            getAll
-          </Button>
+            {isEditing ? (
+              <Button
+                type="default"
+                htmlType="button"
+                onClick={async () => {
+                  try {
+                    const formValues = await form.validateFields();
+                    const connection = await upsertConnection(formValues);
+                    await setRecent();
+                    console.log('connection', connection);
+                  } catch (error) {
+                    console.error(error);
+                  }
+                }}
+              >
+                Save
+              </Button>
+            ) : (
+              <Button
+                type="default"
+                htmlType="button"
+                onClick={async () => {
+                  try {
+                    const formValues = await form.validateFields();
+                    const connection = await upsertConnection(formValues);
+                    await setRecent();
+                    console.log('connection', connection);
+                  } catch (error) {
+                    console.error(error);
+                  }
+                }}
+              >
+                Edit
+              </Button>
+            )}
+          </Space>
         </Form.Item>
       </Form>
     </>

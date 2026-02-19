@@ -91,10 +91,14 @@ export default function Welcome() {
           </Col>
           <Col span={24}>
             <Space>
-              <Button onClick={async () => { 
-                const result = await getRecent();
-                console.log(result);
-              }}>recent</Button>
+              <Button
+                onClick={async () => {
+                  const result = await getRecent();
+                  console.log(result);
+                }}
+              >
+                recent
+              </Button>
             </Space>
           </Col>
         </Row>

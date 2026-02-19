@@ -12,16 +12,19 @@ export async function init() {
   }
 }
 
-export async function create({
-  apparence,
-  username,
-}: {
-  apparence: {
-    mode: 'light' | 'dark' | 'system';
-    theme?: ThemeConfig;
-  };
-  username: string;
-}): Promise<ReturnType<Settings['toJSON']> | undefined> {
+export async function create(
+  {
+    apparence,
+    username,
+  }: {
+    apparence: {
+      mode: 'light' | 'dark' | 'system';
+      theme?: ThemeConfig;
+    };
+    username: string;
+  },
+  json = true,
+): Promise<ReturnType<Settings['toJSON']> | undefined> {
   try {
     const settings = await Settings.create({
       id: MAIN_SETTINGS_ID,
@@ -31,7 +34,7 @@ export async function create({
     if (!settings) {
       throw new Error('failed to create settings');
     }
-    return settings.toJSON();
+    return json ? settings.toJSON() : settings;
   } catch (error) {
     console.error(error);
     return undefined;

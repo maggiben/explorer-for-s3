@@ -42,13 +42,11 @@ Connections.init(
     accessKeyId: {
       type: DataTypes.STRING,
       allowNull: true,
-      defaultValue: '',
     },
 
     secretAccessKey: {
       type: DataTypes.STRING,
       allowNull: true,
-      defaultValue: '',
 
       get(this: Bucket): string | null {
         const value = this.getDataValue('secretAccessKey');
@@ -73,14 +71,12 @@ Connections.init(
 
     region: {
       type: DataTypes.STRING,
-      allowNull: true,
-      defaultValue: '',
+      allowNull: false,
     },
 
     bucket: {
       type: DataTypes.STRING,
       allowNull: true,
-      defaultValue: '',
     },
     createdAt: {
       type: DataTypes.DATE,

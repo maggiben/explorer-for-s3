@@ -56,6 +56,35 @@ export const timeStringToSeconds = (timeString: string): number => {
 };
 
 /**
+ * Returns a random alphanumerical password of a given length
+ *
+ * @param {number} length the password length
+ * @return {string} An alphanumerical password of given length
+ */
+export const getRandomPassword = (length: number) => {
+  return Array.from(
+    { length },
+    () =>
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[
+        Math.floor(Math.random() * 62)
+      ],
+  ).join('');
+};
+
+/**
+ * Returns a random integer number between min and max
+ *
+ * @param {number} min value
+ * @param {number} max value
+ * @return {number} A random inteber between min and max
+ */
+export const getRandomRange = (min: number, max: number) => {
+  const minCeiled = Math.ceil(min);
+  const maxFloored = Math.floor(max);
+  return Math.floor(Math.random() * (maxFloored - minCeiled + 1)) + minCeiled;
+};
+
+/**
  * Converts seconds into human readable time hh:mm:ss
  *
  * @param {number} seconds

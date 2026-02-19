@@ -1,4 +1,4 @@
-import { Op } from 'sequelize';
+
 import {
   DeleteObjectsCommand,
   GetObjectCommand,
@@ -10,28 +10,27 @@ import {
 import { getSignedUrl as awsGetSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Upload } from '@aws-sdk/lib-storage';
 import * as OBJECT_TYPE from '../../shared/constants/object-type';
-import { init, get } from '../ipc/settings';
+import { get } from '../ipc/connections';
 
 /**
  * Sync all objects on S3 to local database.
  * @returns {Promise<void>}
  */
-export async function syncObjectsFromS3() {
-  await init();
-  const settings = await get();
-  const start = new Date();
+export async function syncObjectsFromS3(connectionId) {
+  const connection = await get(connectionId, false);
+  if (!connection) return;
   const client = new S3Client({
-    region: settings.region,
+    region: connection.region,
     credentials: {
-      accessKeyId: settings.accessKeyId,
-      secretAccessKey: settings.secretAccessKey,
+      accessKeyId: connection.accessKeyId,
+      secretAccessKey: connection.secretAccessKey,
     },
   });
   const scanObjects = async (continuationToken?: string) => {
     const pathSet = new Set();
     const result = await client.send(
       new ListObjectsV2Command({
-        Bucket: settings.bucket,
+        Bucket: connection.bucket,
         ContinuationToken: continuationToken,
       }),
     );
@@ -53,7 +52,7 @@ export async function syncObjectsFromS3() {
       storageClass: StorageClass ?? 'STANDARD', // default storage class if missing
     });
 
-    const cosas = await Promise.all([
+    const results = await Promise.all([
       result?.Contents?.map((content) => {
         const pieces = content.Key?.split('/').slice(0, -1) ?? [];
 
@@ -85,12 +84,18 @@ export async function syncObjectsFromS3() {
       result.NextContinuationToken ? scanObjects(result.NextContinuationToken) : null,
     ]);
 
-    console.log('cosas', cosas);
+    console.log('results', results);
+    return results;
   };
 
-  await scanObjects();
-
-  return [];
+  try {
+    const result = await scanObjects();
+    console.log('tree', result);
+    return result;
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
   // // Remove missing objects.
   // await ObjectModel.destroy({
   //   where: { updatedAt: { [Op.lt]: start } },
@@ -103,19 +108,19 @@ export async function syncObjectsFromS3() {
  * @param {Object} options
  * @returns {Promise<HeadObjectCommandOutput>}
  */
-export async function headObject(path, options) {
-  await init();
-  const settings = await get();
+export async function headObject(path, options, connectionId) {
+  const connection = await get(connectionId, false);
+  if (!connection) return;
   const client = new S3Client({
-    region: settings.region,
+    region: connection.region,
     credentials: {
-      accessKeyId: settings.accessKeyId,
-      secretAccessKey: settings.secretAccessKey,
+      accessKeyId: connection.accessKeyId,
+      secretAccessKey: connection.secretAccessKey,
     },
   });
   const headObjectCommand = new HeadObjectCommand({
     ...options,
-    Bucket: settings.bucket,
+    Bucket: connection.bucket,
     Key: path,
   });
 
@@ -127,18 +132,18 @@ export async function headObject(path, options) {
  * @param {number} expiresIn - Expires in seconds. Default is 24 hours.
  * @returns {Promise<string>}
  */
-export async function getSignedUrl(path, { expiresIn = 24 * 60 * 60 } = {}) {
-  await init();
-  const settings = await get();
+export async function getSignedUrl(path, { expiresIn = 24 * 60 * 60 } = {}, connectionId) {
+  const connection = await get(connectionId, false);
+  if (!connection) return;
   const client = new S3Client({
-    region: settings.region,
+    region: connection.region,
     credentials: {
-      accessKeyId: settings.accessKeyId,
-      secretAccessKey: settings.secretAccessKey,
+      accessKeyId: connection.accessKeyId,
+      secretAccessKey: connection.secretAccessKey,
     },
   });
   const getObjectCommand = new GetObjectCommand({
-    Bucket: settings.bucket,
+    Bucket: connection.bucket,
     Key: path,
   });
 
@@ -150,18 +155,18 @@ export async function getSignedUrl(path, { expiresIn = 24 * 60 * 60 } = {}) {
  * @param {string} path
  * @returns {Promise<GetObjectCommandOutput>}
  */
-export async function getObject(path) {
-  await init();
-  const settings = await get();
+export async function getObject(path, connectionId) {
+  const connection = await get(connectionId, false);
+  if (!connection) return;
   const client = new S3Client({
-    region: settings.region,
+    region: connection.region,
     credentials: {
-      accessKeyId: settings.accessKeyId,
-      secretAccessKey: settings.secretAccessKey,
+      accessKeyId: connection.accessKeyId,
+      secretAccessKey: connection.secretAccessKey,
     },
   });
   const getObjectCommand = new GetObjectCommand({
-    Bucket: settings.bucket,
+    Bucket: connection.bucket,
     Key: path,
   });
 
@@ -174,19 +179,19 @@ export async function getObject(path) {
  * @param {Object} options
  * @returns {Promise<PutObjectCommandOutput>}
  */
-export async function putObject(path, options = {}) {
-  await init();
-  const settings = await get();
+export async function putObject(path, options = {}, connectionId) {
+  const connection = await get(connectionId, false);
+  if (!connection) return;
   const client = new S3Client({
-    region: settings.region,
+    region: connection.region,
     credentials: {
-      accessKeyId: settings.accessKeyId,
-      secretAccessKey: settings.secretAccessKey,
+      accessKeyId: connection.accessKeyId,
+      secretAccessKey: connection.secretAccessKey,
     },
   });
   const putObjectCommand = new PutObjectCommand({
     ...options,
-    Bucket: settings.bucket,
+    Bucket: connection.bucket,
     Key: path,
     // ...(options.Body == null ? { Body: null, ContentLength: 0 } : {}),
   });
@@ -201,21 +206,21 @@ export async function putObject(path, options = {}) {
  * @param {function({Bucket: string, Key: string, loaded: number, part: number, total: number})} onProgress
  * @returns {Promise<CompleteMultipartUploadCommandOutput | AbortMultipartUploadCommandOutput>}
  */
-export async function upload({ path, content, options, onProgress }) {
-  await init();
-  const settings = await get();
+export async function upload({ path, content, options, onProgress }, connectionId) {
+  const connection = await get(connectionId, false);
+  if (!connection) return;
   const client = new S3Client({
-    region: settings.region,
+    region: connection.region,
     credentials: {
-      accessKeyId: settings.accessKeyId,
-      secretAccessKey: settings.secretAccessKey,
+      accessKeyId: connection.accessKeyId,
+      secretAccessKey: connection.secretAccessKey,
     },
   });
   const upload = new Upload({
     client,
     params: {
       ...options,
-      Bucket: settings.bucket,
+      Bucket: connection.bucket,
       Key: path,
       Body: content,
     },
@@ -233,18 +238,18 @@ export async function upload({ path, content, options, onProgress }) {
  * @param {Array<string>} paths
  * @returns {Promise<DeleteObjectsCommandOutput>}
  */
-export async function deleteObjects(paths: string[]) {
-  await init();
-  const settings = await get();
+export async function deleteObjects(paths: string[], connectionId) {
+  const connection = await get(connectionId, false);
+  if (!connection) return;
   const client = new S3Client({
-    region: settings.region,
+    region: connection.region,
     credentials: {
-      accessKeyId: settings.accessKeyId,
-      secretAccessKey: settings.secretAccessKey,
+      accessKeyId: connection.accessKeyId,
+      secretAccessKey: connection.secretAccessKey,
     },
   });
   const deleteObjectsCommand = new DeleteObjectsCommand({
-    Bucket: settings.bucket,
+    Bucket: connection.bucket,
     Delete: {
       Objects: paths.map((path) => ({ Key: path })),
     },

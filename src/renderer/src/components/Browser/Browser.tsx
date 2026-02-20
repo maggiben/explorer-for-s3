@@ -1,22 +1,44 @@
 import React, { useEffect, useState } from 'react';
 import { Flex, Pagination, Space, Switch, Table } from 'antd';
+import { FolderOutlined, FileOutlined } from '@ant-design/icons';
 import type { TableColumnsType, TableProps } from 'antd';
 import ipc from '../../../../shared/constants/ipc';
 import { useParams } from 'react-router';
-
+import { toHumanSize } from '../../../../shared/lib/utils';
+import { FOLDER, FILE } from '../../../../shared/constants/object-type';
+import { serial } from '../../../../shared/lib/utils';
 
 type TableRowSelection<T extends object = object> = TableProps<T>['rowSelection'];
 
 interface DataType {
   key: React.ReactNode;
-  name: string;
-  age: number;
-  address: string;
+  type: React.ReactNode;
+  path: string;
+  size: string;
+  lastModified: Date;
+  storageClass: string;
   children?: DataType[];
   listItemHeight?: number;
 }
 
 const columns: TableColumnsType<DataType> = [
+  {
+    title: 'type',
+    dataIndex: 'type',
+    width: '8%',
+    key: 'type',
+    render: (type: number) => {
+      const { icon } =
+        [
+          { type: FOLDER, icon: FolderOutlined },
+          { type: FILE, icon: FileOutlined },
+        ].find((icon) => icon.type === type) ?? {};
+      if (!icon) {
+        return type;
+      }
+      return React.createElement(icon);
+    },
+  },
   {
     title: 'path',
     dataIndex: 'path',
@@ -27,17 +49,19 @@ const columns: TableColumnsType<DataType> = [
     dataIndex: 'size',
     key: 'size',
     width: '12%',
+    render: (value: number) => toHumanSize(value, 0),
   },
   {
-    title: 'type',
-    dataIndex: 'type',
-    width: '10%',
-    key: 'type',
+    title: 'Last Modified',
+    dataIndex: 'lastModified',
+    width: '22%',
+    key: 'lastModified',
+    render: (value: Date) => value.toLocaleString(),
   },
   {
     title: 'storageClass',
     dataIndex: 'storageClass',
-    width: '20%',
+    width: '15%',
     key: 'storageClass',
   },
 ];
@@ -142,9 +166,39 @@ const rowSelection: TableRowSelection<DataType> = {
 export default function Browser() {
   const params = useParams();
   const [data, setData] = useState<DataType[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  const handleDrop = async (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const files = Array.from(event.dataTransfer.files);
+    console.log(Array.from(files));
+
+    // default = root
+    // await uploadFiles(files, null);
+  };
 
   useEffect(() => {
     if (!params.id || !params.id.match(/[0-9]/)) return;
+    const promises = Array(10)
+      .fill(1000)
+      .map((ms, index) => () => {
+        return new Promise((resolve) => {
+          setTimeout(() => {
+            console.log(`timer ${index} done!`);
+            return resolve(true);
+          }, ms);
+        });
+      });
+    serial(promises).then(console.log);
+
     connect(parseInt(params.id, 10))
       .then((result) => {
         console.log('result', result);
@@ -155,6 +209,8 @@ export default function Browser() {
   return (
     <Flex
       vertical
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
       style={{
         maxHeight: 'calc(100vh - 80px)',
       }}
@@ -173,6 +229,24 @@ export default function Browser() {
           dataSource={data}
           sticky
           pagination={false}
+          onRow={(record) => ({
+            onDragOver: (event: React.DragEvent) => {
+              if (record.type === FOLDER) {
+                event.preventDefault();
+              }
+            },
+            onDrop: async (event: React.DragEvent) => {
+              event.preventDefault();
+              event.stopPropagation();
+
+              if (record.type !== FOLDER) return;
+
+              const files = Array.from(event.dataTransfer.files);
+
+              console.log('files', files);
+              // await uploadFiles(files, record.path);
+            },
+          })}
         />
       </div>
     </Flex>

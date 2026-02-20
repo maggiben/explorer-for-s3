@@ -1,7 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { electronAPI } from '@electron-toolkit/preload';
-import { init, get, create } from '../main/ipc/settings';
 import ipc from '../shared/constants/ipc';
+import { ISettings } from '../types/ISettings';
+import { IConnection } from '../types/IConnection';
 // Custom APIs for renderer
 const api = {};
 
@@ -13,8 +14,36 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('electron', electronAPI);
     contextBridge.exposeInMainWorld('api', api);
     contextBridge.exposeInMainWorld('settings', {
-      get: () => ipcRenderer.invoke(ipc.MAIN_API, { command: 'settings:get' }),
-      set: () => ipcRenderer.invoke(ipc.MAIN_API, { command: 'settings:set' }),
+      get: (id?: number): Promise<ISettings> =>
+        ipcRenderer.invoke(ipc.MAIN_API, { command: 'settings:get', id }),
+      set: (preferences: ISettings) =>
+        ipcRenderer.invoke(ipc.MAIN_API, { command: 'settings:set', preferences }),
+    });
+    contextBridge.exposeInMainWorld('connections', {
+      add: (connection: IConnection): Promise<IConnection> =>
+        ipcRenderer
+          .invoke(ipc.MAIN_API, { command: 'connections:add', connection })
+          .then(({ results, ack }) => ack && results.shift())
+          .then(({ result, ack }) => ack && result),
+      get: (id: number): Promise<IConnection> =>
+        ipcRenderer
+          .invoke(ipc.MAIN_API, { command: 'connections:get', id })
+          .then(({ results, ack }) => ack && results.shift())
+          .then(({ result, ack }) => ack && result),
+      getAll: (): Promise<IConnection[]> =>
+        ipcRenderer.invoke(ipc.MAIN_API, { command: 'connections:getAll' }),
+      getRecent: (): Promise<IConnection[]> =>
+        ipcRenderer
+          .invoke(ipc.MAIN_API, { command: 'connections:getRecent' })
+          .then(({ results, ack }) => ack && results.shift())
+          .then(({ result, ack }) => ack && result),
+      connect: (id: number) =>
+        ipcRenderer.invoke(ipc.MAIN_API, { command: 'connections:connect', id }),
+      upsert: (connection: IConnection): Promise<IConnection> =>
+        ipcRenderer
+          .invoke(ipc.MAIN_API, { command: 'connections:upsert', connection })
+          .then(({ results, ack }) => ack && results.shift())
+          .then(({ result, ack }) => ack && result),
     });
   } catch (error) {
     console.error(error);

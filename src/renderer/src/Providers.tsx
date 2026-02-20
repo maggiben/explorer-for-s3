@@ -1,10 +1,9 @@
 import React from 'react';
 import { Provider as JotaiProvider } from 'jotai';
-import type { ExtractAtomValue } from 'jotai';
 import { theme } from 'antd';
 import { settingsAtom } from './atoms/settings';
-import { themeAtom } from './atoms/theme';
 import { useHydrateAtoms } from 'jotai/utils';
+import type { ISettings } from '../../types/ISettings';
 
 function HydrateAtoms({ initialValues, children }) {
   // initialising on state with prop on render here
@@ -17,12 +16,7 @@ export default function Providers({
   settings,
 }: Readonly<{
   children: React.ReactNode;
-  settings: {
-    apparence: {
-      mode: string;
-      theme: ExtractAtomValue<typeof themeAtom>;
-    };
-  };
+  settings: ISettings;
 }>) {
   const algorithm = settings.apparence.mode === 'dark' ? [theme.darkAlgorithm] : null;
   return (

@@ -1,0 +1,9 @@
+export const STANDARD: number = 1;
+export const REDUCED_REDUNDANCY: number = 2;
+export const STANDARD_IA: number = 3;
+export const ONEZONE_IA: number = 4;
+export const INTELLIGENT_TIERING: number = 5;
+export const GLACIER: number = 6;
+export const DEEP_ARCHIVE: number = 7;
+export const OUTPOSTS: number = 8;
+export const GLACIER_IR: number = 9;

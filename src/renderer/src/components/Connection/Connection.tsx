@@ -10,35 +10,12 @@ import regions from '../../../../shared/constants/regions.json';
 import { getRandomPassword, getRandomRange } from '../../../../shared/lib/utils';
 import s3Icon from '../../assets/icons/s3.svg?react';
 import useRecent from '@renderer/hooks/useRecent';
+import type { IConnection } from '../../../../types/IConnection';
 
 const { Title } = Typography;
 
-type FieldType = {
-  id?: number;
-  accessKeyId: string;
-  secretAccessKey: string;
-  region: string;
-  bucket: string;
-  remember?: boolean;
+type FieldType = IConnection & {
   onFinish: () => Promise<FieldType | undefined>;
-};
-
-const onFinish = async (connection: FieldType): Promise<FieldType | undefined> => {
-  try {
-    const payload = {
-      ts: new Date().getTime(),
-      command: 'connections:add',
-      connection,
-    };
-    const result = window.electron.ipcRenderer.invoke(ipc.MAIN_API, payload);
-    console.log(result);
-    return await result
-      .then(({ results, ack }) => ack && results.shift())
-      .then(({ result, ack }) => ack && result);
-  } catch (error) {
-    console.error(error);
-    return undefined;
-  }
 };
 
 const onFinishFailed: FormProps<FieldType>['onFinishFailed'] = (errorInfo) => {
@@ -47,16 +24,18 @@ const onFinishFailed: FormProps<FieldType>['onFinishFailed'] = (errorInfo) => {
 
 async function upsertConnection(connection: FieldType) {
   try {
-    const payload = {
-      ts: new Date().getTime(),
-      command: connection.id ? 'connections:upsert' : 'connections:add',
-      connection,
-    };
-    const result = window.electron.ipcRenderer.invoke(ipc.MAIN_API, payload, connect);
-    console.log(result);
-    return await result
-      .then(({ results, ack }) => ack && results.shift())
-      .then(({ result, ack }) => ack && result);
+    // const payload = {
+    //   ts: new Date().getTime(),
+    //   command: connection.id ? 'connections:upsert' : 'connections:add',
+    //   connection,
+    // };
+    // const result = window.electron.ipcRenderer.invoke(ipc.MAIN_API, payload);
+    // console.log(result);
+    const result = connection.id
+      ? window.connections.upsert(connection)
+      : window.connections.add(connection);
+    console.log('result', result); 
+    return await result;
   } catch (error) {
     console.error(error);
     return undefined;
@@ -70,19 +49,14 @@ export default function Connection() {
   const [form] = Form.useForm();
   const params = useParams();
   const [isEditing, setIsEditing] = useState<boolean>(true);
-  const getAll = () =>
-    window.electron.ipcRenderer.invoke(ipc.MAIN_API, { command: 'connections:getAll' });
 
   useEffect(() => {
     if (!params.id || !params.id.match(/[0-9]/)) return;
     setIsEditing(false);
     console.log('getId', params.id);
-    const get = (id) =>
-      window.electron.ipcRenderer.invoke(ipc.MAIN_API, { command: 'connections:get', id });
 
-    get(params.id)
-      .then(({ results, ack }) => ack && results.shift())
-      .then(({ result, ack }) => ack && result)
+    window.connections
+      .get(parseInt(params.id, 10))
       .then(async (con) => {
         console.log('connnn', con);
         setConnection(con);
@@ -102,7 +76,7 @@ export default function Connection() {
       <Title level={2} editable>
         <Space>
           <Icon component={s3Icon} />
-          {connection.bucket || 'New Bucket'}
+          {connection.bucket || 'New Bucket'} {isEditing ? 'edit' : 'noedit'}
         </Space>
       </Title>
       <Form

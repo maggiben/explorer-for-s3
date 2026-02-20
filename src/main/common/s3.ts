@@ -108,7 +108,7 @@ export async function syncObjectsFromS3(connectionId) {
  * @param {Object} options
  * @returns {Promise<HeadObjectCommandOutput>}
  */
-export async function headObject(path, options, connectionId) {
+export async function headObject(path, connectionId: number, options?: Record<string, unknown> ) {
   const connection = await get(connectionId, false);
   if (!connection) return;
   const client = new S3Client({

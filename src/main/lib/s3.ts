@@ -108,55 +108,57 @@ export async function createFile({ onProgress, ...data }) {
   }
 }
 
-export default {
-  /**
-   * @param {function(event, {basename: string, total: number, loaded: number})} onProgress
-   * @param {{localPath: string, dirname: string, ids: Array<number>}} data
-   * @returns {Promise<*>}
-   */
-  async downloadObjects({ onProgress, ...data }) {
-    const id = Math.random().toString(36);
-    const channel = `downloadObjects.onProgress:${id}`;
 
-    try {
-      if (typeof onProgress === 'function') {
-        ipcRenderer.on(channel, onProgress);
-      }
+/**
+ * @param {function(event, {basename: string, total: number, loaded: number})} onProgress
+ * @param {{localPath: string, dirname: string, ids: Array<number>}} data
+ * @returns {Promise<*>}
+ */
+export async function downloadObjects({ onProgress, ...data }) {
+  const id = Math.random().toString(36);
+  const channel = `downloadObjects.onProgress:${id}`;
 
-      return await sendApiRequest({
-        method: 'downloadObjects',
-        data: { ...data, onProgressChannel: channel },
-      });
-    } finally {
-      if (typeof onProgress === 'function') {
-        ipcRenderer.off(channel, onProgress);
-      }
+  try {
+    if (typeof onProgress === 'function') {
+      ipcRenderer.on(channel, onProgress);
     }
-  },
-  /**
-   * @param {{ids: Array<number>}} data
-   * @returns {Promise<null>}
-   */
-  deleteObjects(data) {
-    return sendApiRequest({ method: 'deleteObjects', data });
-  },
-  /**
-   * @returns {Promise<null|{id, accessKeyId, bucket, region, updatedAt, createdAt}>}
-   */
-  getSettings() {
-    return sendApiRequest({ method: 'getSettings' });
-  },
-  /**
-   * @param {{accessKeyId: string, secretAccessKey: string, region: string, bucket: string}} data
-   * @returns {Promise<{id, accessKeyId, bucket, region, updatedAt, createdAt}>}
-   */
-  updateS3Settings(data) {
-    return sendApiRequest({ method: 'updateS3Settings', data });
-  },
-  /**
-   * @returns {Promise<null>}
-   */
-  syncObjectsFromS3() {
-    return sendApiRequest({ method: 'syncObjectsFromS3' });
-  },
+
+    return await sendApiRequest({
+      method: 'downloadObjects',
+      data: { ...data, onProgressChannel: channel },
+    });
+  } finally {
+    if (typeof onProgress === 'function') {
+      ipcRenderer.off(channel, onProgress);
+    }
+  }
 };
+
+/**
+ * @param {{ids: Array<number>}} data
+ * @returns {Promise<null>}
+ */
+export async function deleteObjects(data) {
+  return sendApiRequest({ method: 'deleteObjects', data });
+}
+
+/**
+ * @returns {Promise<null|{id, accessKeyId, bucket, region, updatedAt, createdAt}>}
+ */
+export async function getSettings() {
+  return sendApiRequest({ method: 'getSettings' });
+}
+/**
+ * @param {{accessKeyId: string, secretAccessKey: string, region: string, bucket: string}} data
+ * @returns {Promise<{id, accessKeyId, bucket, region, updatedAt, createdAt}>}
+ */
+export async function updateS3Settings(data) {
+  return sendApiRequest({ method: 'updateS3Settings', data });
+}
+
+/**
+ * @returns {Promise<null>}
+ */
+export async function syncObjectsFromS3() {
+  return sendApiRequest({ method: 'syncObjectsFromS3' });
+}

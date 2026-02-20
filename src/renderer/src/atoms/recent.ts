@@ -7,6 +7,6 @@ export const recentAtom = atom<
     region: string;
     bucket: string;
     remember?: boolean;
-    id?: string;
+    id?: number;
   }[]
 >([]);

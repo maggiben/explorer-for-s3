@@ -1,15 +1,4 @@
 import { atom } from 'jotai';
-import type { ThemeConfig } from 'antd';
+import { ISettings } from '../../../types/ISettings';
 
-export const settingsAtom = atom<{
-  apparence: {
-    mode: 'light' | 'dark' | 'system';
-    theme?: ThemeConfig;
-  };
-  username: string;
-}>({
-  apparence: {
-    mode: 'light',
-  },
-  username: '',
-});
+export const settingsAtom = atom<ISettings>();

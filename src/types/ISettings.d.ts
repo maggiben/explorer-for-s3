@@ -1,20 +1,23 @@
+import type { ExtractAtomValue } from 'jotai';
+import { themeAtom } from '../renderer/src/atoms/theme';
+
 export interface INotificationOptions {
   enabled: boolean;
   silent?: boolean;
 }
 
-export interface IPreferences {
+export interface ISettings {
   behaviour: {
-    shouldUseDarkColors: string;
     language: string;
     preferredSystemLanguages?: string[];
-    theme: Record<string, unknown>;
     notifications: INotificationOptions;
-    sideBar: {
-      visible: boolean;
-      resizable: boolean;
-      selected?: string;
-    };
+  };
+  username: string;
+  apparence: {
+    mode: string;
+    language: string;
+    preferredSystemLanguages?: string[];
+    theme: ExtractAtomValue<typeof themeAtom>;
   };
   advanced: {
     isDev?: boolean;

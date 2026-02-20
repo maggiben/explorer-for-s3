@@ -8,11 +8,9 @@ export default function useRecent<T>(
   deps?: DependencyList,
 ): [T[] | undefined | void, () => Promise<void>] {
   const [recent, setRecent] = useAtom(recentAtom);
-  const get = async () =>
-    window.electron.ipcRenderer.invoke(ipc.MAIN_API, { command: 'connections:getRecent' });
-  const set = async () => get()
-      .then(({ results, ack }) => ack && results.shift())
-      .then(({ result, ack }) => ack && result)
+  const set = async () =>
+    window.connections
+      .getRecent()
       .then((results) => setRecent(results))
       .catch(console.error);
   useEffect(() => {
@@ -20,5 +18,5 @@ export default function useRecent<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deps]);
 
-  return [recent, set] as T[];
+  return [recent, set] as [T[], () => Promise<void>];
 }

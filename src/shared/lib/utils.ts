@@ -1,39 +1,5 @@
-/*
- * @file         : utils.ts
- * @summary      : connmon utilitis
- * @version      : 1.0.0
- * @project      : YtKit
- * @description  : micelaneous utilities used thought the project
- * @author       : Benjamin Maggi
- * @email        : benjaminmaggi@gmail.com
- * @date         : 24 Fef 2024
- * @license:     : MIT
- *
- * Copyright 2021 Benjamin Maggi <benjaminmaggi@gmail.com>
- *
- *
- * License:
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and associated documentation files
- * (the "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to permit
- * persons to whom the Software is furnished to do so, subject to the
- * following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
- * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
-
 import sanitizeName from 'sanitize-filename';
+const UNITS = ' KMGTPEZYXWVU';
 
 export const timeStringToSeconds = (timeString: string): number => {
   const parts = timeString.split(':').map((part) => parseInt(part, 10));
@@ -125,13 +91,17 @@ export const toHumanTime = (
  * @param {number} bytes
  * @return {string}
  */
-const UNITS = ' KMGTPEZYXWVU';
-export const toHumanSize = (bytes: number): string => {
+export const toHumanSize = (bytes: number, decimals: number = 2): string => {
   if (bytes <= 0) {
     return '0';
   }
-  const t2 = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), 12);
-  return `${Math.round((bytes * 100) / Math.pow(1024, t2)) / 100}${UNITS.charAt(t2).replace(' ', '')}B`;
+
+  const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), 12);
+  const value = bytes / Math.pow(1024, unitIndex);
+  const factor = Math.pow(10, decimals);
+  const rounded = Math.round(value * factor) / factor;
+
+  return `${rounded}${UNITS.charAt(unitIndex).replace(' ', '')}B`;
 };
 
 /**
@@ -378,6 +348,21 @@ export const setNestedProperty = <T>(obj: T, path: string, value: unknown): T =>
   return { ...obj };
 };
 
+/*
+ * serial executes Promises sequentially.
+ * @param {funcs} An array of funcs that return promises.
+ * @example
+ * const urls = ['/url1', '/url2', '/url3']
+ * serial(urls.map(url => () => $.ajax(url)))
+ *     .then(console.log.bind(console))
+ */
+export function serial<T>(funcs) {
+  return funcs.reduce(
+    (promise, func) => promise.then((result) => func().then(Array.prototype.concat.bind(result))),
+    Promise.resolve([]),
+  ) as Promise<T>;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ThrottledFunction<T extends (...args: any[]) => any> = (
   ...args: Parameters<T>
@@ -464,35 +449,6 @@ export function debounce<T extends unknown[], U>(
  */
 export function cloneJson<T extends Record<string, unknown>>(obj: T): T {
   return JSON.parse(JSON.stringify(obj)) as T;
-}
-
-export function getYoutubeVideoId(url: string): string | undefined {
-  const regExp = new RegExp(
-    /(?:http|https|)(?::\/\/|)(?:www.|)(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/ytscreeningroom\?v=|\/feeds\/api\/videos\/|\/user\S*[^\w\-\s]|\S*[^\w\-\s]))([\w-]{11})[a-z0-9;:@#?&%=+/$_.-]*/,
-  );
-  const match = url.match(regExp);
-  if (match && match[1]) {
-    return match[1];
-  }
-  return undefined;
-}
-/**
- * Get playlist id from url
- *
- * @param {string} url the youtube url
- * @returns {string|undefined} the playlist id
- */
-export function getYoutubePlaylistId(url: string): string | undefined {
-  const regExp = new RegExp(
-    /(?:http|https|)(?::\/\/|)(?:www.|)(?:youtu\.be\/|youtube\.com(?:\/embed\/|\/v\/|\/watch\?v=|\/ytscreeningroom\?v=|\/feeds\/api\/videos\/|\/user\S*[^\w\-\s]|\S*[^\w\-\s]))([\w-]{12,})[a-z0-9;:@#?&%=+/$_.-]*/,
-  );
-  if (url.includes('list=')) {
-    const match = url.match(regExp);
-    if (match && match[1]) {
-      return match[1];
-    }
-  }
-  return;
 }
 
 export const isRenderer = typeof process === 'undefined' || !process || process.type === 'renderer';

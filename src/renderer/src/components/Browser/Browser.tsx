@@ -1,19 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { Flex, Pagination, Space, Switch, Table } from 'antd';
 import { FolderOutlined, FileOutlined } from '@ant-design/icons';
 import type { TableColumnsType, TableProps } from 'antd';
+import { Flex, Table, Progress, notification } from 'antd';
 import { useParams } from 'react-router';
 import { toHumanSize } from '../../../../shared/lib/utils';
 import { FOLDER, FILE } from '../../../../shared/constants/object-type';
-import { serial } from '../../../../shared/lib/utils';
+import type { IpcMainInvokeEvent } from 'electron';
 
 type TableRowSelection<T extends object = object> = TableProps<T>['rowSelection'];
 
 interface DataType {
-  key: React.ReactNode;
-  type: React.ReactNode;
+  id?: string;
+  key?: React.ReactNode;
+  type: number;
   path: string;
-  size: string;
+  size: number;
   lastModified: Date;
   storageClass: string;
   children?: DataType[];
@@ -24,7 +25,7 @@ const columns: TableColumnsType<DataType> = [
   {
     title: 'type',
     dataIndex: 'type',
-    width: '8%',
+    width: '10%',
     key: 'type',
     render: (type: number) => {
       const { icon } =
@@ -53,15 +54,9 @@ const columns: TableColumnsType<DataType> = [
   {
     title: 'Last Modified',
     dataIndex: 'lastModified',
-    width: '22%',
+    width: '28%',
     key: 'lastModified',
     render: (value: Date) => value.toLocaleString(),
-  },
-  {
-    title: 'storageClass',
-    dataIndex: 'storageClass',
-    width: '15%',
-    key: 'storageClass',
   },
 ];
 
@@ -146,53 +141,108 @@ const rowSelection: TableRowSelection<DataType> = {
   },
 };
 
+async function getLocalPaths(files: File[]): Promise<string[]> {
+  return Promise.all(files.map((file) => window.api.getFilePath(file)));
+}
+
 export default function Browser() {
   const params = useParams();
   const [data, setData] = useState<DataType[]>([]);
+  const [progress, setProgress] = useState<number>(0);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
+  const [api, contextHolder] = notification.useNotification();
+  const copyNotification = (key: string) => () => {
+    api.open({
+      key,
+      title: 'Notification Title',
+      description: (
+        <Flex gap="small" vertical>
+          <Progress percent={progress} />
+        </Flex>
+      ),
+      duration: false,
+    });
+  };
+  const connectionId = params.id ? parseInt(params.id, 10) : undefined;
+
+  const refreshList = (connectionId?: number) => {
+    if (!connectionId || !Number.isFinite(connectionId)) return;
+    window.connections
+      .connect(connectionId)
+      .then((result) => setData(Array.isArray(result) ? result : []))
+      .catch((err) => console.error(err));
+  };
 
   const handleDragOver = (event: React.DragEvent) => {
     event.preventDefault();
     event.stopPropagation();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
   };
 
   const handleDrop = async (event: React.DragEvent) => {
     event.preventDefault();
     event.stopPropagation();
+    if (connectionId == null || !Number.isFinite(connectionId)) return;
+
+    // const objectId = event.dataTransfer.getData(S3_OBJECT_ID_KEY);
+    // if (objectId) return;
 
     const files = Array.from(event.dataTransfer.files);
-    console.log(Array.from(files));
+    // const filePaths = await Promise.all(files.map((file) => window.api.getFilePath(file)));
+    console.log(event.dataTransfer.getData('text/plain'));
+    const localPaths = await getLocalPaths(files);
+    // console.log('localPaths', localPaths, files, files.map((f) => (f as File & { path?: string }).path ?? ''));
+    if (localPaths.length === 0) return;
 
-    // default = root
-    // await uploadFiles(files, null);
+    setUploading(true);
+    const notificationKey = window.crypto.randomUUID();
+    // copyNotification(notificationKey)();
+    try {
+      const results = await Promise.all(
+        localPaths.map(async (localPath, index) => {
+          const rate = 1 / localPaths.length;
+          const newFile = await window.objects.createFile({
+            id: window.crypto.randomUUID(),
+            connectionId,
+            localPath,
+            dirname: undefined,
+            onProgress: (
+              event: IpcMainInvokeEvent,
+              { loaded, total }: { loaded: number; total: number; part: number },
+            ) => {
+              const p = Math.round(index * rate * 100 + (loaded / total) * rate * 100);
+              api.open({
+                key: notificationKey,
+                title: `file ${localPath} progress`,
+                description: (
+                  <Flex gap="small" vertical>
+                    <Progress percent={p} />
+                  </Flex>
+                ),
+                duration: false,
+              });
+              console.log('progress', p);
+              setProgress(p);
+              if (p >= 100) setUploading(false);
+            },
+            onEnd: () => {},
+          });
+          console.log('newFile', newFile);
+          return newFile;
+        }),
+      );
+      console.log('results', results);
+      refreshList(connectionId);
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : 'Upload failed');
+    }
   };
 
   useEffect(() => {
-    if (!params.id || !params.id.match(/[0-9]/)) return;
-    const promises = Array(10)
-      .fill(1000)
-      .map((ms, index) => () => {
-        return new Promise((resolve) => {
-          setTimeout(() => {
-            console.log(`timer ${index} done!`);
-            return resolve(true);
-          }, ms);
-        });
-      });
-    serial(promises).then(console.log);
+    refreshList(connectionId);
+  }, [connectionId]);
 
-    window.connections
-      .connect(parseInt(params.id, 10))
-      .then((result) => {
-        console.log('result', result);
-        setData(result);
-      })
-      .catch((error) => {
-        console.error(error);
-        alert(error);
-      });
-  }, [params.id]);
   return (
     <Flex
       vertical
@@ -202,6 +252,7 @@ export default function Browser() {
         maxHeight: 'calc(100vh - 80px)',
       }}
     >
+      {contextHolder}
       <div
         style={{
           flex: 1,
@@ -210,30 +261,115 @@ export default function Browser() {
           maxHeight: 'calc(100vh - 80px)',
         }}
       >
+        {uploading && (
+          <Flex gap="small" vertical>
+            <Progress percent={progress} />
+          </Flex>
+        )}
         <Table<DataType>
+          rowKey="id"
           columns={columns}
           rowSelection={{ ...rowSelection }}
           dataSource={data}
           sticky
           pagination={false}
-          onRow={(record) => ({
-            onDragOver: (event: React.DragEvent) => {
-              if (record.type === FOLDER) {
+          onRow={(record) => {
+            return {
+              draggable: true,
+              onDragStart: (event: React.DragEvent) => {
                 event.preventDefault();
-              }
-            },
-            onDrop: async (event: React.DragEvent) => {
-              event.preventDefault();
-              event.stopPropagation();
+                window.api.startDrag(record.path);
+              },
+            };
+          }}
+          // onRow={(record) => {
+          //   const folderPath =
+          //     record.type === FOLDER && record.path ? record.path.replace(/\/$/, '') : '';
+          //   return {
+          //     draggable: true,
+          //     onDragStart: (e: React.DragEvent) => {
+          //       e.dataTransfer.setData(
+          //         S3_OBJECT_ID_KEY,
+          //         String(record.id ?? record.key ?? record.path),
+          //       );
+          //       e.dataTransfer.effectAllowed = 'move';
+          //     },
+          //     onDragOver: (e: React.DragEvent) => {
+          //       if (record.type === FOLDER) {
+          //         e.preventDefault();
+          //         e.stopPropagation();
+          //         e.dataTransfer.dropEffect = 'move';
+          //       }
+          //     },
+          //     onDrop: async (e: React.DragEvent) => {
+          //       e.preventDefault();
+          //       e.stopPropagation();
+          //       if (record.type !== FOLDER || !connectionId) return;
+          //       // LOCAL FILE UPLOAD
+          //       const files = Array.from(e.dataTransfer.files);
+          //       if (!files.length) return;
 
-              if (record.type !== FOLDER) return;
+          //       try {
+          //         for (const file of files) {
+          //           await window.objects.createFile({
+          //             connectionId,
+          //             file,
+          //             dirname: folderPath,
+          //             mimeType: file.type || 'application/octet-stream',
+          //             onProgressChannel: undefined,
+          //           });
+          //         }
+          //         refreshList();
+          //       } catch (err) {
+          //         console.error(err);
+          //         alert(err instanceof Error ? err.message : 'Upload failed');
+          //       } finally {
+          //         setUploading(false);
+          //       }
+          //       // const sourceId = e.dataTransfer.getData('text/plain');
 
-              const files = Array.from(event.dataTransfer.files);
+          //       // console.log('sourceId', sourceId);
 
-              console.log('files', files);
-              // await uploadFiles(files, record.path);
-            },
-          })}
+          //       // if (!sourceId) {
+          //       //   const files = Array.from(e.dataTransfer.files);
+          //       //   const localPaths = getLocalPaths(files);
+          //       //   if (localPaths.length === 0) return;
+          //       //   setUploading(true);
+          //       //   try {
+          //       //     for (const localPath of localPaths) {
+          //       //       await window.objects.createFile({
+          //       //         connectionId,
+          //       //         localPath,
+          //       //         dirname: folderPath,
+          //       //         onProgressChannel: undefined,
+          //       //       });
+          //       //     }
+          //       //     refreshList();
+          //       //   } catch (err) {
+          //       //     console.error(err);
+          //       //     alert(err instanceof Error ? err.message : 'Upload failed');
+          //       //   } finally {
+          //       //     setUploading(false);
+          //       //   }
+          //       //   return;
+          //       // }
+
+          //       // if (sourceId === record.id) return;
+          //       // try {
+          //       //   await window.objects.copyObjects({
+          //       //     connectionId,
+          //       //     sourceIds: [sourceId],
+          //       //     targetDirname: folderPath,
+          //       //     move: true,
+          //       //   });
+          //       //   refreshList();
+          //       // } catch (err) {
+          //       //   console.error(err);
+          //       //   alert(err instanceof Error ? err.message : 'Move failed');
+          //       // }
+          //     },
+          //   };
+          // }}
         />
       </div>
     </Flex>

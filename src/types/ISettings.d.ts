@@ -14,6 +14,9 @@ export interface ISettings {
   username: string;
   apparence: {
     mode: string;
+    sider?: {
+      collapsed?: boolean;
+    };
     language: string;
     theme: ThemeConfig;
   };

@@ -1,0 +1,415 @@
+import fs from 'fs';
+import path from 'path';
+import mimeTypes from 'mime-types';
+import { Op, UniqueConstraintError } from 'sequelize';
+// const { NotFoundError, ConflictError } = require('../../../shared/errors');
+import * as OBJECT_TYPE from '../../shared/constants/object-type';
+import * as STORAGE_CLASS from '../../shared/constants/storage-class';
+import * as s3 from '../common/s3';
+import Objects from '../models/data/objects-model';
+import { IpcMainInvokeEvent } from 'electron';
+import { serial } from '../../shared/lib/utils';
+import { generateLikeSyntax, parseKeyword } from '../common/database';
+
+export async function init() {
+  try {
+    // This will create the table if it doesn't exist
+    await Objects.sync({ alter: true });
+    console.log('Objects table synced successfully');
+  } catch (error) {
+    console.error('Failed to sync Objects table', error);
+  }
+}
+
+export async function getObjects(
+  {
+    dirname,
+    keyword,
+    after,
+    limit,
+  }: { dirname: string; keyword?: string; after?: number; limit: number } = {
+    dirname: '',
+    limit: 50,
+  },
+) {
+  const keywordConditions = keyword
+    ? (({ plus, minus }) => [
+        plus.map((plusKeyword) => ({ path: { [Op.like]: generateLikeSyntax(plusKeyword) } })),
+        minus.map((minusKeyword) => ({ path: { [Op.like]: generateLikeSyntax(minusKeyword) } })),
+      ])(parseKeyword(keyword))
+    : [];
+
+  const afterConditions = after
+    ? await (async (id: number) => {
+        const cursor = await Objects.findOne({
+          where: { id },
+          attributes: ['id', 'type', 'basename'],
+        });
+
+        if (!cursor) {
+          throw new Error(`not found object ${after}`);
+        }
+
+        return [
+          {
+            [Op.and]: [
+              { type: { [Op.gte]: cursor.type } },
+              { basename: { [Op.gt]: cursor.basename } },
+            ],
+          },
+          {
+            [Op.and]: [
+              { type: { [Op.gte]: cursor.type } },
+              { basename: cursor.basename },
+              { id: { [Op.gt]: cursor.id } },
+            ],
+          },
+        ];
+      })(after)
+    : [];
+
+  const objects = await Objects.findAll({
+    where: {
+      dirname: keywordConditions.length
+        ? { [Op.like]: generateLikeSyntax(dirname, { start: '' }) }
+        : dirname,
+      ...(afterConditions.length ? { [Op.or]: afterConditions } : undefined),
+      ...(keywordConditions.length ? { [Op.and]: keywordConditions } : undefined),
+    },
+    order: [
+      ['type', 'ASC'],
+      ['basename', 'ASC'],
+      ['id', 'ASC'],
+    ],
+    limit: limit + 1,
+  });
+
+  return {
+    hasNextPage: objects.length > limit,
+    items: objects.slice(0, limit).map((object) => object.toJSON()),
+  };
+}
+
+/**
+ * @param {number} id
+ * @returns {Promise<Objects>}
+ */
+export async function getObject({ id, connectionId }: { id: number; connectionId: number }) {
+  const object = await Objects.findOne({ where: { id } });
+
+  if (!object) {
+    throw new Error('Object not found');
+  }
+
+  const headers = await s3.headObject(object.path, connectionId);
+
+  let url: string | undefined = undefined;
+  if (headers?.ContentType?.startsWith('image/')) {
+    url = await s3.getSignedUrl(object.path, { expiresIn: 60 * 60 }, id);
+  } else if (headers?.ContentType?.startsWith('video/')) {
+    url = await s3.getSignedUrl(object.path, { expiresIn: 60 * 60 }, id);
+  }
+
+  return {
+    ...object.toJSON(),
+    url,
+    objectHeaders: headers,
+  };
+}
+
+/**
+ * @param {string} dirname
+ * @param {string} basename
+ * @returns {Promise<Objects>}
+ */
+export async function createFolder({
+  dirname,
+  basename,
+  connectionId,
+}: {
+  dirname?: string;
+  basename?: string;
+  connectionId: number;
+}) {
+  const object = new Objects({
+    type: OBJECT_TYPE.FOLDER,
+    path: dirname || null ? `${dirname}/${basename}/` : `${basename}/`,
+  });
+
+  if (object.dirname) {
+    const parent = await Objects.findOne({
+      where: {
+        type: OBJECT_TYPE.FOLDER,
+        path: `${object.dirname}/`,
+      },
+    });
+
+    if (!parent) {
+      throw new Error(`not found parent "${object.dirname}"`);
+    }
+  }
+
+  try {
+    await object.save();
+    await s3.putObject(object.path, connectionId);
+    return object.toJSON();
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+}
+
+/**
+ * @param {IpcMainInvokeEvent} $event
+ * @param {string} localPath
+ * @param {string} dirname
+ * @param {string} onProgressChannel
+ * @returns {Promise<Objects>}
+ */
+export async function createFile({
+  $event,
+  localPath = '/',
+  dirname,
+  onProgressChannel,
+  connectionId,
+}: {
+  $event: IpcMainInvokeEvent;
+  localPath?: string;
+  dirname?: string;
+  onProgressChannel?: string;
+  connectionId: number;
+}) {
+  const basename = path.basename(localPath);
+  const object = new Objects({
+    type: OBJECT_TYPE.FILE,
+    path: dirname || null ? `${dirname}/${basename}` : `${basename}`,
+    storageClass: STORAGE_CLASS.STANDARD,
+  });
+  const onProgress = onProgressChannel
+    ? (progress) => {
+        $event.sender.send(onProgressChannel, progress);
+      }
+    : null;
+
+  if (object.dirname) {
+    const parent = await Objects.findOne({
+      where: {
+        type: OBJECT_TYPE.FOLDER,
+        path: `${object.dirname}/`,
+      },
+    });
+
+    if (!parent) {
+      throw new Error(`not found parent "${object.dirname}"`);
+    }
+  }
+
+  try {
+    await object.save();
+    await s3.upload(
+      {
+        path: object.path,
+        content: fs.createReadStream(localPath),
+        options: {
+          ContentType: mimeTypes.lookup(basename),
+        },
+        onProgress,
+      },
+      connectionId,
+    );
+    const objectHeaders = await s3.headObject(object.path, connectionId);
+
+    object.size = objectHeaders?.ContentLength ?? 0;
+    object.lastModified = objectHeaders?.LastModified ?? new Date();
+    await object.save();
+    return object.toJSON();
+  } catch (error) {
+    await object.destroy();
+    throw error;
+  }
+}
+
+/**
+ * @param {IpcMainInvokeEvent} $event
+ * @param {string} localPath
+ * @param {string} dirname
+ * @param {Array<number>} ids - Object ids
+ * @param {string} onProgressChannel
+ * @returns {Promise<void>}
+ */
+export async function downloadObjects({
+  $event,
+  localPath = '/',
+  dirname = '/',
+  ids,
+  onProgressChannel,
+  connectionId,
+}: {
+  $event: IpcMainInvokeEvent;
+  localPath?: string;
+  dirname?: string;
+  ids: string[];
+  onProgressChannel?: string;
+  connectionId: number;
+}) {
+  const objects = await Objects.findAll({
+    where: {
+      id: { [Op.in]: ids },
+    },
+  });
+
+  if (objects.length !== ids.length) {
+    const existsIds = objects.map(({ id }) => id);
+
+    ids.forEach((id) => {
+      if (!existsIds.includes(id)) {
+        throw new Error(`not found object "${id}"`);
+      }
+    });
+
+    throw new Error(`not found "${ids}"`);
+  }
+
+  const files: Objects[] = [];
+  const onProgress = onProgressChannel
+    ? (progress) => {
+        $event.sender.send(onProgressChannel, progress);
+      }
+    : null;
+
+  await Promise.all(
+    objects.map((object) =>
+      serial(async () => {
+        if (object.type === OBJECT_TYPE.FILE) {
+          files.push(object);
+          return;
+        }
+
+        const deepFiles = await Objects.findAll({
+          where: {
+            path: { [Op.like]: generateLikeSyntax(object.path, { start: '' }) },
+            type: OBJECT_TYPE.FILE,
+          },
+        });
+
+        files.push(...deepFiles);
+      }),
+    ),
+  );
+
+  await Promise.all(
+    files.map((file, index) =>
+      serial(async () => {
+        const result = await s3.getObject(file.path, connectionId);
+        const total = result?.ContentLength ?? 0;
+        let loaded = 0;
+        const writeStream = fs.createWriteStream(
+          path.join(localPath, ...file.path.replace(dirname, '').split(path.sep)),
+        );
+
+        const body = result?.Body as NodeJS.ReadableStream;
+        body.pipe(writeStream);
+        body.on('data', (chunk) => {
+          loaded += chunk.length;
+
+          if (onProgress) {
+            const rate = 1 / files.length;
+
+            onProgress({
+              basename: file.basename,
+              total: 100,
+              loaded: Math.round(index * rate * 100 + (loaded / total) * rate * 100),
+            });
+          }
+        });
+
+        return new Promise((resolve, reject) => {
+          body.on('error', reject);
+          body.on('end', resolve);
+        });
+      }),
+    ),
+  );
+}
+
+export async function deleteObjects({
+  ids,
+  connectionId,
+}: {
+  ids: string[];
+  connectionId: number;
+}) {
+  const files: Objects[] = [];
+  const folders: Objects[] = [];
+  const objects = await Objects.findAll({
+    where: {
+      id: { [Op.in]: ids },
+    },
+  });
+
+  if (objects.length !== ids.length) {
+    const existsIds = objects.map(({ id }) => id);
+
+    ids.forEach((id) => {
+      if (!existsIds.includes(id)) {
+        throw new Error(`not found "${id}"`);
+      }
+    });
+  }
+
+  await Promise.all(
+    objects.map((object) =>
+      serial(async () => {
+        if (object.type === OBJECT_TYPE.FILE) {
+          files.push(object);
+        } else {
+          const [deepFiles, deepFolders] = await Promise.all([
+            Objects.findAll({
+              where: {
+                type: OBJECT_TYPE.FILE,
+                path: { [Op.like]: generateLikeSyntax(object.path, { start: '' }) },
+              },
+            }),
+            Objects.findAll({
+              where: {
+                type: OBJECT_TYPE.FOLDER,
+                path: { [Op.like]: generateLikeSyntax(object.path, { start: '' }) },
+              },
+            }),
+          ]);
+
+          files.push(...deepFiles);
+          folders.push(...deepFolders);
+        }
+      }),
+    ),
+  );
+
+  if (files.length) {
+    await Promise.all([
+      s3.deleteObjects(
+        files.map((file) => file.path),
+        connectionId,
+      ),
+      Objects.destroy({
+        where: { id: { [Op.in]: files.map((file) => file.id) } },
+      }),
+    ]);
+  }
+
+  if (folders.length) {
+    await Promise.all([
+      s3.deleteObjects(
+        folders
+          .map((folder) => folder.path)
+          .sort((a, b) => b.split('/').length - a.split('/').length),
+        connectionId,
+      ),
+      Objects.destroy({
+        where: { id: { [Op.in]: folders.map((folder) => folder.id) } },
+      }),
+    ]);
+  }
+
+  return null;
+}

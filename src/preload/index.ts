@@ -38,7 +38,9 @@ if (process.contextIsolated) {
           .then(({ results, ack }) => ack && results.shift())
           .then(({ result, ack }) => ack && result),
       connect: (id: number) =>
-        ipcRenderer.invoke(ipc.MAIN_API, { command: 'connections:connect', id }),
+        ipcRenderer
+          .invoke(ipc.MAIN_API, { command: 'connections:connect', id })
+          .then(({ results, ack }) => ack && results.shift()),
       upsert: (connection: IConnection): Promise<IConnection> =>
         ipcRenderer
           .invoke(ipc.MAIN_API, { command: 'connections:upsert', connection })

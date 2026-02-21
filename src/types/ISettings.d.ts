@@ -1,5 +1,4 @@
-import type { ExtractAtomValue } from 'jotai';
-import { themeAtom } from '../renderer/src/atoms/theme';
+import type { ThemeConfig } from 'antd';
 
 export interface INotificationOptions {
   enabled: boolean;
@@ -16,8 +15,7 @@ export interface ISettings {
   apparence: {
     mode: string;
     language: string;
-    preferredSystemLanguages?: string[];
-    theme: ExtractAtomValue<typeof themeAtom>;
+    theme: ThemeConfig;
   };
   advanced: {
     isDev?: boolean;

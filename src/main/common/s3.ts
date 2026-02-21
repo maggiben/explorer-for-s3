@@ -11,12 +11,15 @@ import { getSignedUrl as awsGetSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Upload } from '@aws-sdk/lib-storage';
 import * as OBJECT_TYPE from '../../shared/constants/object-type';
 import { get } from '../ipc/connections';
+import Objects from '../models/data/objects-model';
+import { Op } from 'sequelize';
 
 /**
  * Sync all objects on S3 to local database.
  * @returns {Promise<void>}
  */
-export async function syncObjectsFromS3(connectionId) {
+export async function syncObjectsFromS3(connectionId: number) {
+  const start = new Date();
   const connection = await get(connectionId, false);
   if (!connection) return;
   const client = new S3Client({
@@ -80,7 +83,6 @@ export async function syncObjectsFromS3(connectionId) {
           pathSet.add(object.path);
           return true;
         }),
-      { updateOnDuplicate: ['type', 'lastModified', 'size', 'updatedAt', 'storageClass'] },
       result.NextContinuationToken ? scanObjects(result.NextContinuationToken) : null,
     ]);
 
@@ -89,12 +91,20 @@ export async function syncObjectsFromS3(connectionId) {
   };
 
   try {
-    const result = await scanObjects();
-    console.log('tree', result);
-    return result;
+    const tree = await scanObjects();
+    const result = await Objects.bulkCreate(tree[0], {
+      updateOnDuplicate: ['type', 'lastModified', 'size', 'updatedAt', 'storageClass'],
+    });
+    // Remove missing objects.
+    await Objects.destroy({
+      where: { updatedAt: { [Op.lt]: start } },
+    });
+    console.log('result', result);
+    console.log('tree', tree);
+    return tree;
   } catch (error) {
     console.error(error);
-    return [];
+    throw error;
   }
   // // Remove missing objects.
   // await ObjectModel.destroy({
@@ -108,7 +118,7 @@ export async function syncObjectsFromS3(connectionId) {
  * @param {Object} options
  * @returns {Promise<HeadObjectCommandOutput>}
  */
-export async function headObject(path, connectionId: number, options?: Record<string, unknown> ) {
+export async function headObject(path, connectionId: number, options?: Record<string, unknown>) {
   const connection = await get(connectionId, false);
   if (!connection) return;
   const client = new S3Client({
@@ -179,7 +189,7 @@ export async function getObject(path, connectionId) {
  * @param {Object} options
  * @returns {Promise<PutObjectCommandOutput>}
  */
-export async function putObject(path, options = {}, connectionId) {
+export async function putObject(path, connectionId, options = {}) {
   const connection = await get(connectionId, false);
   if (!connection) return;
   const client = new S3Client({

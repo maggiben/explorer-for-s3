@@ -7,7 +7,7 @@ export const connectionAtom = atom<{
   region: string;
   bucket: string;
   remember?: boolean;
-  id?: string;
+  id?: number;
 }>({
   accessKeyId: '',
   secretAccessKey: '',

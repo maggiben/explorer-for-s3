@@ -65,23 +65,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const [collapsed, setCollapsed] = React.useState(true);
-  const { apparence } = useAtomValue(themeAtom);
+  const { mode, theme } = useAtomValue(themeAtom);
   const [recent] = useRecent();
-  console.log('recent', recent);
-  // const [xxxa, setxxxa] = useAtom(asyncStrAtom);
-
-  // console.log('xxxa', xxxa);
-
-  console.log('appTheme', apparence);
 
   return (
     <HashRouter>
-      <ConfigProvider theme={apparence.theme}>
+      <ConfigProvider theme={theme}>
         <Layout style={{ minHeight: '100vh', minWidth: '100vw' }}>
           <Layout>
             <Sider
               width={200}
-              theme={apparence.mode as SiderTheme}
+              theme={mode as SiderTheme}
               collapsible
               collapsed={collapsed}
               onCollapse={(value) => setCollapsed(value)}
@@ -99,7 +93,11 @@ export default function RootLayout({
                   defaultSelectedKeys={['1']}
                   defaultOpenKeys={[]}
                   style={{ height: '100%', borderInlineEnd: 0 }}
-                  items={recent?.length ? createRecentMenu(recent) : []}
+                  items={
+                    recent?.length
+                      ? createRecentMenu(recent as { bucket: string; id: number }[])
+                      : []
+                  }
                 />
                 <Menu
                   mode="inline"

@@ -1,4 +1,5 @@
 import path from 'path';
+import { randomUUID } from 'crypto';
 import * as OBJECT_TYPE from '../../../shared/constants/object-type';
 import * as STORAGE_CLASS from '../../../shared/constants/storage-class';
 import { connect } from '../../common/database';
@@ -16,11 +17,13 @@ const sequelize = connect();
 
 class Objects extends Model<InferAttributes<Objects>, InferCreationAttributes<Objects>> {
   declare id: CreationOptional<string>;
+  declare connectionId: CreationOptional<number>;
   declare type: CreationOptional<number>;
   declare path: CreationOptional<string>;
   declare dirname: CreationOptional<string>;
   declare basename: CreationOptional<string>;
   declare lastModified: CreationOptional<Date>;
+  declare updatedAt: CreationOptional<Date>;
   declare size: CreationOptional<number>;
   declare storageClass: CreationOptional<number>;
 
@@ -35,6 +38,13 @@ Objects.init(
       type: DataTypes.UUID,
       allowNull: true,
       primaryKey: true,
+      set: function (this: Objects) {
+        this.setDataValue('id', randomUUID());
+      },
+    },
+    connectionId: {
+      type: DataTypes.NUMBER,
+      allowNull: false,
     },
     type: {
       type: DataTypes.TINYINT,
@@ -77,6 +87,11 @@ Objects.init(
     lastModified: {
       type: DataTypes.DATE,
       allowNull: true,
+      defaultValue: NOW,
+    },
+    updatedAt: {
+      type: DataTypes.DATE,
+      allowNull: false,
       defaultValue: NOW,
     },
     size: {

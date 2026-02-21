@@ -131,22 +131,6 @@ const columns: TableColumnsType<DataType> = [
 //   },
 // ];
 
-async function connect(id: number) {
-  try {
-    const payload = {
-      ts: new Date().getTime(),
-      command: 'connections:connect',
-      id,
-    };
-    const result = window.electron.ipcRenderer.invoke(ipc.MAIN_API, payload);
-    console.log(result);
-    return await result.then(({ results, ack }) => ack && results.shift());
-  } catch (error) {
-    console.error(error);
-    return undefined;
-  }
-}
-
 // rowSelection objects indicates the need for row selection
 const rowSelection: TableRowSelection<DataType> = {
   onChange: (selectedRowKeys, selectedRows, info) => {
@@ -199,13 +183,17 @@ export default function Browser() {
       });
     serial(promises).then(console.log);
 
-    connect(parseInt(params.id, 10))
+    window.connections
+      .connect(parseInt(params.id, 10))
       .then((result) => {
         console.log('result', result);
         setData(result[0]);
       })
-      .catch(console.error);
-  }, []);
+      .catch((error) => {
+        console.error(error);
+        alert(error);
+      });
+  }, [params.id]);
   return (
     <Flex
       vertical

@@ -22,6 +22,7 @@ class Connections extends Model<
   declare bucket: CreationOptional<string>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
+  declare remember: CreationOptional<boolean>;
 
   override toJSON() {
     const result = mergeDeep(this.get({ plain: true })) as Record<string, unknown>;
@@ -48,7 +49,7 @@ Connections.init(
       type: DataTypes.STRING,
       allowNull: true,
 
-      get(this: Bucket): string | null {
+      get(this: Connections): string | null {
         const value = this.getDataValue('secretAccessKey');
         if (!value) {
           return null;
@@ -56,7 +57,7 @@ Connections.init(
         return decrypt(Buffer.from(value, 'base64')).toString();
       },
 
-      set(this: Bucket, value: string | null): void {
+      set(this: Connections, value: string | null): void {
         if (!value) {
           this.setDataValue('secretAccessKey', '');
           return;
@@ -85,6 +86,11 @@ Connections.init(
     updatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
+    },
+    remember: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: true,
     },
   },
   {

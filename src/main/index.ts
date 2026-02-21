@@ -1,11 +1,11 @@
-import { app, shell, BrowserWindow, ipcMain, Tray, Menu } from 'electron';
+import { app, shell, BrowserWindow, ipcMain, Tray, Menu, ipcRenderer } from 'electron';
 import { nativeImage } from 'electron/common';
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import icon from '../../resources/icon.png?asset';
-// import Settings from './models/data/settings-model';
-// import { MAIN_SETTINGS_ID } from '../shared/constants/settings';
+import { deleteForgettableConnections } from './ipc/connections';
 import './ipc';
+
 
 function createWindow(): void {
   // Create the browser window.
@@ -89,10 +89,14 @@ app.whenReady().then(() => {
   });
 });
 
+app.on('before-quit', async () => {
+  await deleteForgettableConnections();
+});
+
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }

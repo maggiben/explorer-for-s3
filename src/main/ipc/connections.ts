@@ -16,11 +16,13 @@ export async function create({
   secretAccessKey,
   region,
   bucket,
+  remember = true,
 }: {
   accessKeyId: string;
   secretAccessKey: string;
   region: string;
   bucket: string;
+  remember?: boolean;
 }): Promise<ReturnType<Connections['toJSON']> | undefined> {
   try {
     console.log('creating connection');
@@ -29,6 +31,7 @@ export async function create({
       secretAccessKey,
       region,
       bucket,
+      remember,
     });
     if (!result) {
       throw new Error('failed to get settings');
@@ -53,12 +56,14 @@ export async function upsert({
   secretAccessKey,
   region,
   bucket,
+  remember = true,
 }: {
   id?: number;
   accessKeyId: string;
   secretAccessKey: string;
   region: string;
   bucket: string;
+  remember?: boolean;
 }): Promise<ReturnType<Connections['toJSON']> | undefined> {
   try {
     await Connections.upsert({
@@ -67,6 +72,7 @@ export async function upsert({
       secretAccessKey,
       region,
       bucket,
+      remember,
     });
     const result = await Connections.findOne({ where: { id } });
     if (!result) {
@@ -127,5 +133,14 @@ export async function getAll(): Promise<ReturnType<Connections['toJSON']>[] | un
   } catch (error) {
     console.error(error);
     return undefined;
+  }
+}
+
+export async function deleteForgettableConnections(): Promise<void> {
+  try {
+    await Connections.destroy({ where: { remember: false } });
+  } catch (error) {
+    console.error(error);
+    return Promise.reject(error);
   }
 }

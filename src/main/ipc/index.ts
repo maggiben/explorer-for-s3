@@ -1,24 +1,21 @@
 import os from 'os';
-import { ipcMain, IpcMainInvokeEvent, nativeTheme } from 'electron';
+import path from 'path';
+import { app, ipcMain, IpcMainInvokeEvent, nativeTheme } from 'electron';
 import ipc from '../../shared/constants/ipc';
 import * as Settings from '../ipc/settings';
 import SettingsModel from '../models/data/settings-model';
 import * as Buckets from '../ipc/buckets';
 import * as Connections from '../ipc/connections';
+import * as Objects from '../ipc/objects';
 import { syncObjectsFromS3 } from '../../main/common/s3';
+import { IConnection } from 'types/IConnection';
 
 type TBucketCommands = 'buckets:add' | 'buckets:getAll';
 type TConnectionCommands = 'connections:add' | 'connections:getAll';
 type TSettingsCommands = 'settings:add' | 'settings:getAll';
 interface IMessage {
   command: TBucketCommands | TSettingsCommands | TConnectionCommands;
-  connection?: {
-    accessKeyId: string;
-    secretAccessKey: string;
-    region: string;
-    bucket: string;
-    remember?: string;
-  };
+  connection?: IConnection;
   settings?: ReturnType<SettingsModel['toJSON']>;
   id?: number;
 }
@@ -27,6 +24,7 @@ interface IMessage {
     await Connections.init();
     await Buckets.init();
     await Settings.init();
+    await Objects.init();
     ipcMain.handle(ipc.MAIN_API, async (event: IpcMainInvokeEvent, ...args: IMessage[]) => {
       const results = await Promise.all(
         args
@@ -96,9 +94,15 @@ interface IMessage {
                     };
                   }
                   case 'connect': {
+                    return syncObjectsFromS3(arg.id);
+                  }
+                  case 'deleteForgettableConnections': {
                     try {
-                      const result = await syncObjectsFromS3(arg.id);
-                      return result;
+                      await Connections.deleteForgettableConnections();
+                      return {
+                        result: true,
+                        ack: new Date().getTime(),
+                      };
                     } catch (error) {
                       console.error(error);
                       break;
@@ -125,7 +129,14 @@ interface IMessage {
                           username,
                         });
                       }
-                      return settings;
+                      return {
+                        ...settings,
+                        isDev: !app.isPackaged || process.env.NODE_ENV === 'development',
+                        logs: {
+                          enabled: true,
+                          savePath: path.join(app.getPath('userData'), 'logs'),
+                        },
+                      };
                     } catch (error) {
                       console.error(error);
                     }

@@ -5,7 +5,6 @@ import { Button, Typography, Checkbox, Form, Input, Select, Space } from 'antd';
 import Icon from '@ant-design/icons';
 import { connectionAtom } from '@renderer/atoms/connection';
 import { useAtom } from 'jotai';
-import ipc from '../../../../shared/constants/ipc';
 import regions from '../../../../shared/constants/regions.json';
 import { getRandomPassword, getRandomRange } from '../../../../shared/lib/utils';
 import s3Icon from '../../assets/icons/s3.svg?react';
@@ -24,17 +23,10 @@ const onFinishFailed: FormProps<FieldType>['onFinishFailed'] = (errorInfo) => {
 
 async function upsertConnection(connection: FieldType) {
   try {
-    // const payload = {
-    //   ts: new Date().getTime(),
-    //   command: connection.id ? 'connections:upsert' : 'connections:add',
-    //   connection,
-    // };
-    // const result = window.electron.ipcRenderer.invoke(ipc.MAIN_API, payload);
-    // console.log(result);
     const result = connection.id
       ? window.connections.upsert(connection)
       : window.connections.add(connection);
-    console.log('result', result); 
+    console.log('result', result);
     return await result;
   } catch (error) {
     console.error(error);
@@ -48,24 +40,24 @@ export default function Connection() {
   const [, setRecent] = useRecent();
   const [form] = Form.useForm();
   const params = useParams();
-  const [isEditing, setIsEditing] = useState<boolean>(true);
+  const [isEditing, setIsEditing] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!params.id || !params.id.match(/[0-9]/)) return;
+    if (!params.id || !params.id.match(/[0-9]/)) {
+      setIsEditing(true);
+      return;
+    }
     setIsEditing(false);
-    console.log('getId', params.id);
-
     window.connections
       .get(parseInt(params.id, 10))
-      .then(async (con) => {
-        console.log('connnn', con);
-        setConnection(con);
+      .then(async (connection) => {
+        console.log('connnn', connection);
+        setConnection(connection);
         await form.resetFields();
         await form.setFieldsValue({
-          ...con,
+          ...connection,
           secretAccessKey: getRandomPassword(getRandomRange(8, 16)),
         });
-        // form.
       })
       .catch(console.error);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -76,7 +68,7 @@ export default function Connection() {
       <Title level={2} editable>
         <Space>
           <Icon component={s3Icon} />
-          {connection.bucket || 'New Bucket'} {isEditing ? 'edit' : 'noedit'}
+          {connection.bucket || 'New Bucket'}
         </Space>
       </Title>
       <Form
@@ -178,10 +170,8 @@ export default function Connection() {
                 htmlType="button"
                 onClick={async () => {
                   try {
-                    const formValues = await form.validateFields();
-                    const connection = await upsertConnection(formValues);
-                    await setRecent();
-                    console.log('connection', connection);
+                    await form.resetFields();
+                    setIsEditing(true);
                   } catch (error) {
                     console.error(error);
                   }

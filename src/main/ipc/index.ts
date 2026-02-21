@@ -19,6 +19,7 @@ interface IMessage {
   connection?: IConnection;
   settings?: ReturnType<SettingsModel['toJSON']>;
   id?: number;
+  ids?: string[];
   connectionId?: number;
   dirname?: string;
   localPath?: string;
@@ -237,10 +238,24 @@ interface IMessage {
                         move: arg.move,
                       });
                       return { result, ack: new Date().getTime() };
-                    } catch (err) {
-                      console.error(err);
+                    } catch (error) {
+                      console.error(error);
                       break;
                     }
+                  }
+                  case 'deleteObjects': {
+                    if (arg.connectionId == null || !arg.ids?.length) break;
+                    try {
+                      const result = await Objects.deleteObjects({
+                        connectionId: arg.connectionId,
+                        ids: arg.ids,
+                      });
+                      return { result, ack: new Date().getTime() };
+                    } catch (error) {
+                      console.error(error);
+                      break;
+                    }
+                    break;
                   }
                   default:
                     break;

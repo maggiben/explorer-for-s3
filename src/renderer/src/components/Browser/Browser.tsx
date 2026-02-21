@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { FolderOutlined, FileOutlined } from '@ant-design/icons';
 import type { TableColumnsType, TableProps } from 'antd';
-import { Flex, Table, Progress, notification } from 'antd';
+import { Flex, Table, Progress, notification, Divider } from 'antd';
 import { useParams } from 'react-router';
 import { toHumanSize } from '../../../../shared/lib/utils';
 import { FOLDER, FILE } from '../../../../shared/constants/object-type';
 import type { IpcMainInvokeEvent } from 'electron';
+import FileToolbar from './FileToolbar';
 
 type TableRowSelection<T extends object = object> = TableProps<T>['rowSelection'];
 
 interface DataType {
   id?: string;
-  key?: React.ReactNode;
+  key?: React.Key;
   type: number;
   path: string;
   size: number;
@@ -21,28 +22,25 @@ interface DataType {
   listItemHeight?: number;
 }
 
+const typeToIcon = [
+  { type: FOLDER, icon: FolderOutlined },
+  { type: FILE, icon: FileOutlined },
+];
+
 const columns: TableColumnsType<DataType> = [
-  {
-    title: 'type',
-    dataIndex: 'type',
-    width: '10%',
-    key: 'type',
-    render: (type: number) => {
-      const { icon } =
-        [
-          { type: FOLDER, icon: FolderOutlined },
-          { type: FILE, icon: FileOutlined },
-        ].find((icon) => icon.type === type) ?? {};
-      if (!icon) {
-        return type;
-      }
-      return React.createElement(icon);
-    },
-  },
   {
     title: 'path',
     dataIndex: 'path',
     key: 'path',
+    render: (path: string, record: DataType) => {
+      const { icon: Icon } = typeToIcon.find((e) => e.type === record.type) ?? {};
+      return (
+        <Flex align="center" gap={8}>
+          {Icon ? <Icon /> : null}
+          <span>{path}</span>
+        </Flex>
+      );
+    },
   },
   {
     title: 'size',
@@ -126,20 +124,6 @@ const columns: TableColumnsType<DataType> = [
 // ];
 
 // rowSelection objects indicates the need for row selection
-const rowSelection: TableRowSelection<DataType> = {
-  onChange: (selectedRowKeys, selectedRows, info) => {
-    console.log(
-      `selectedRowKeys: ${selectedRowKeys}`,
-      'selectedRows: ',
-      selectedRows,
-      'info',
-      info,
-    );
-  },
-  onSelect: (record, selected, selectedRows) => {
-    console.log(record, selected, selectedRows);
-  },
-};
 
 async function getLocalPaths(files: File[]): Promise<string[]> {
   return Promise.all(files.map((file) => window.api.getFilePath(file)));
@@ -148,21 +132,8 @@ async function getLocalPaths(files: File[]): Promise<string[]> {
 export default function Browser() {
   const params = useParams();
   const [data, setData] = useState<DataType[]>([]);
-  const [progress, setProgress] = useState<number>(0);
-  const [uploading, setUploading] = useState(false);
+  const [selected, setSelected] = useState<DataType[]>([]);
   const [api, contextHolder] = notification.useNotification();
-  const copyNotification = (key: string) => () => {
-    api.open({
-      key,
-      title: 'Notification Title',
-      description: (
-        <Flex gap="small" vertical>
-          <Progress percent={progress} />
-        </Flex>
-      ),
-      duration: false,
-    });
-  };
   const connectionId = params.id ? parseInt(params.id, 10) : undefined;
 
   const refreshList = (connectionId?: number) => {
@@ -171,6 +142,22 @@ export default function Browser() {
       .connect(connectionId)
       .then((result) => setData(Array.isArray(result) ? result : []))
       .catch((err) => console.error(err));
+  };
+
+  const rowSelection: TableRowSelection<DataType> = {
+    onChange: (selectedRowKeys, selectedRows, info) => {
+      console.log(
+        `selectedRowKeys: ${selectedRowKeys}`,
+        'selectedRows: ',
+        selectedRows,
+        'info',
+        info,
+      );
+      setSelected(selectedRows);
+    },
+    onSelect: (record, selected, selectedRows) => {
+      console.log(record, selected, selectedRows);
+    },
   };
 
   const handleDragOver = (event: React.DragEvent) => {
@@ -193,16 +180,13 @@ export default function Browser() {
     const localPaths = await getLocalPaths(files);
     // console.log('localPaths', localPaths, files, files.map((f) => (f as File & { path?: string }).path ?? ''));
     if (localPaths.length === 0) return;
-
-    setUploading(true);
-    const notificationKey = window.crypto.randomUUID();
-    // copyNotification(notificationKey)();
     try {
       const results = await Promise.all(
         localPaths.map(async (localPath, index) => {
           const rate = 1 / localPaths.length;
+          const id = window.crypto.randomUUID();
           const newFile = await window.objects.createFile({
-            id: window.crypto.randomUUID(),
+            id,
             connectionId,
             localPath,
             dirname: undefined,
@@ -210,20 +194,19 @@ export default function Browser() {
               event: IpcMainInvokeEvent,
               { loaded, total }: { loaded: number; total: number; part: number },
             ) => {
-              const p = Math.round(index * rate * 100 + (loaded / total) * rate * 100);
+              // const progress = Math.round(index * rate * 100 + (loaded / total) * rate * 100);
+              const progress = Math.round((loaded / total) * 100);
               api.open({
-                key: notificationKey,
+                key: id,
                 title: `file ${localPath} progress`,
                 description: (
                   <Flex gap="small" vertical>
-                    <Progress percent={p} />
+                    <Progress percent={progress} />
                   </Flex>
                 ),
                 duration: false,
               });
-              console.log('progress', p);
-              setProgress(p);
-              if (p >= 100) setUploading(false);
+              console.log('progress', progress);
             },
             onEnd: () => {},
           });
@@ -257,120 +240,129 @@ export default function Browser() {
         style={{
           flex: 1,
           flexGrow: 1,
-          overflow: 'auto',
-          maxHeight: 'calc(100vh - 80px)',
+          overflow: 'hidden',
         }}
       >
-        {uploading && (
-          <Flex gap="small" vertical>
-            <Progress percent={progress} />
-          </Flex>
-        )}
-        <Table<DataType>
-          rowKey="id"
-          columns={columns}
-          rowSelection={{ ...rowSelection }}
-          dataSource={data}
-          sticky
-          pagination={false}
-          onRow={(record) => {
-            return {
-              draggable: true,
-              onDragStart: (event: React.DragEvent) => {
-                event.preventDefault();
-                window.api.startDrag(record.path);
-              },
-            };
+        <FileToolbar selected={selected} connectionId={connectionId} refreshList={refreshList} />
+        <Divider style={{ margin: '10px 0' }}/>
+        <div
+          style={{
+            flex: 1,
+            flexGrow: 1,
+            overflow: 'auto',
+            height: '100vh',
+            // maxHeight: 'calc(100vh - 80px)',
           }}
-          // onRow={(record) => {
-          //   const folderPath =
-          //     record.type === FOLDER && record.path ? record.path.replace(/\/$/, '') : '';
-          //   return {
-          //     draggable: true,
-          //     onDragStart: (e: React.DragEvent) => {
-          //       e.dataTransfer.setData(
-          //         S3_OBJECT_ID_KEY,
-          //         String(record.id ?? record.key ?? record.path),
-          //       );
-          //       e.dataTransfer.effectAllowed = 'move';
-          //     },
-          //     onDragOver: (e: React.DragEvent) => {
-          //       if (record.type === FOLDER) {
-          //         e.preventDefault();
-          //         e.stopPropagation();
-          //         e.dataTransfer.dropEffect = 'move';
-          //       }
-          //     },
-          //     onDrop: async (e: React.DragEvent) => {
-          //       e.preventDefault();
-          //       e.stopPropagation();
-          //       if (record.type !== FOLDER || !connectionId) return;
-          //       // LOCAL FILE UPLOAD
-          //       const files = Array.from(e.dataTransfer.files);
-          //       if (!files.length) return;
+        >
+          <Table<DataType>
+            rowKey="id"
+            columns={columns}
+            rowSelection={{ ...rowSelection }}
+            dataSource={data}
+            pagination={false}
+            sticky
+            style={{
+              height: 'calc(100vh + 200px)',
+            }}
+            onRow={(record) => {
+              return {
+                draggable: true,
+                onDragStart: (event: React.DragEvent) => {
+                  event.preventDefault();
+                  window.api.startDrag(record.path);
+                },
+              };
+            }}
+            // onRow={(record) => {
+            //   const folderPath =
+            //     record.type === FOLDER && record.path ? record.path.replace(/\/$/, '') : '';
+            //   return {
+            //     draggable: true,
+            //     onDragStart: (e: React.DragEvent) => {
+            //       e.dataTransfer.setData(
+            //         S3_OBJECT_ID_KEY,
+            //         String(record.id ?? record.key ?? record.path),
+            //       );
+            //       e.dataTransfer.effectAllowed = 'move';
+            //     },
+            //     onDragOver: (e: React.DragEvent) => {
+            //       if (record.type === FOLDER) {
+            //         e.preventDefault();
+            //         e.stopPropagation();
+            //         e.dataTransfer.dropEffect = 'move';
+            //       }
+            //     },
+            //     onDrop: async (e: React.DragEvent) => {
+            //       e.preventDefault();
+            //       e.stopPropagation();
+            //       if (record.type !== FOLDER || !connectionId) return;
+            //       // LOCAL FILE UPLOAD
+            //       const files = Array.from(e.dataTransfer.files);
+            //       if (!files.length) return;
 
-          //       try {
-          //         for (const file of files) {
-          //           await window.objects.createFile({
-          //             connectionId,
-          //             file,
-          //             dirname: folderPath,
-          //             mimeType: file.type || 'application/octet-stream',
-          //             onProgressChannel: undefined,
-          //           });
-          //         }
-          //         refreshList();
-          //       } catch (err) {
-          //         console.error(err);
-          //         alert(err instanceof Error ? err.message : 'Upload failed');
-          //       } finally {
-          //         setUploading(false);
-          //       }
-          //       // const sourceId = e.dataTransfer.getData('text/plain');
+            //       try {
+            //         for (const file of files) {
+            //           await window.objects.createFile({
+            //             connectionId,
+            //             file,
+            //             dirname: folderPath,
+            //             mimeType: file.type || 'application/octet-stream',
+            //             onProgressChannel: undefined,
+            //           });
+            //         }
+            //         refreshList();
+            //       } catch (err) {
+            //         console.error(err);
+            //         alert(err instanceof Error ? err.message : 'Upload failed');
+            //       } finally {
+            //         setUploading(false);
+            //       }
+            //       // const sourceId = e.dataTransfer.getData('text/plain');
 
-          //       // console.log('sourceId', sourceId);
+            //       // console.log('sourceId', sourceId);
 
-          //       // if (!sourceId) {
-          //       //   const files = Array.from(e.dataTransfer.files);
-          //       //   const localPaths = getLocalPaths(files);
-          //       //   if (localPaths.length === 0) return;
-          //       //   setUploading(true);
-          //       //   try {
-          //       //     for (const localPath of localPaths) {
-          //       //       await window.objects.createFile({
-          //       //         connectionId,
-          //       //         localPath,
-          //       //         dirname: folderPath,
-          //       //         onProgressChannel: undefined,
-          //       //       });
-          //       //     }
-          //       //     refreshList();
-          //       //   } catch (err) {
-          //       //     console.error(err);
-          //       //     alert(err instanceof Error ? err.message : 'Upload failed');
-          //       //   } finally {
-          //       //     setUploading(false);
-          //       //   }
-          //       //   return;
-          //       // }
+            //       // if (!sourceId) {
+            //       //   const files = Array.from(e.dataTransfer.files);
+            //       //   const localPaths = getLocalPaths(files);
+            //       //   if (localPaths.length === 0) return;
+            //       //   setUploading(true);
+            //       //   try {
+            //       //     for (const localPath of localPaths) {
+            //       //       await window.objects.createFile({
+            //       //         connectionId,
+            //       //         localPath,
+            //       //         dirname: folderPath,
+            //       //         onProgressChannel: undefined,
+            //       //       });
+            //       //     }
+            //       //     refreshList();
+            //       //   } catch (err) {
+            //       //     console.error(err);
+            //       //     alert(err instanceof Error ? err.message : 'Upload failed');
+            //       //   } finally {
+            //       //     setUploading(false);
+            //       //   }
+            //       //   return;
+            //       // }
 
-          //       // if (sourceId === record.id) return;
-          //       // try {
-          //       //   await window.objects.copyObjects({
-          //       //     connectionId,
-          //       //     sourceIds: [sourceId],
-          //       //     targetDirname: folderPath,
-          //       //     move: true,
-          //       //   });
-          //       //   refreshList();
-          //       // } catch (err) {
-          //       //   console.error(err);
-          //       //   alert(err instanceof Error ? err.message : 'Move failed');
-          //       // }
-          //     },
-          //   };
-          // }}
-        />
+            //       // if (sourceId === record.id) return;
+            //       // try {
+            //       //   await window.objects.copyObjects({
+            //       //     connectionId,
+            //       //     sourceIds: [sourceId],
+            //       //     targetDirname: folderPath,
+            //       //     move: true,
+            //       //   });
+            //       //   refreshList();
+            //       // } catch (err) {
+            //       //   console.error(err);
+            //       //   alert(err instanceof Error ? err.message : 'Move failed');
+            //       // }
+            //     },
+            //   };
+            // }}
+          />
+        </div>
       </div>
     </Flex>
   );

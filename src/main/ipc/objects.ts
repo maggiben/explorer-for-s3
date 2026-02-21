@@ -372,9 +372,7 @@ export async function deleteObjects({
 }: {
   ids: string[];
   connectionId: number;
-}) {
-  const files: Objects[] = [];
-  const folders: Objects[] = [];
+}): Promise<null> {
   const objects = await Objects.findAll({
     where: {
       id: { [Op.in]: ids },
@@ -391,32 +389,33 @@ export async function deleteObjects({
     });
   }
 
-  await Promise.all(
-    objects.map((object) =>
-      serial(async () => {
-        if (object.type === OBJECT_TYPE.FILE) {
-          files.push(object);
-        } else {
-          const [deepFiles, deepFolders] = await Promise.all([
-            Objects.findAll({
-              where: {
-                type: OBJECT_TYPE.FILE,
-                path: { [Op.like]: generateLikeSyntax(object.path, { start: '' }) },
-              },
-            }),
-            Objects.findAll({
-              where: {
-                type: OBJECT_TYPE.FOLDER,
-                path: { [Op.like]: generateLikeSyntax(object.path, { start: '' }) },
-              },
-            }),
-          ]);
-
-          files.push(...deepFiles);
-          folders.push(...deepFolders);
-        }
-      }),
-    ),
+  const [files, folders] = await objects.reduce(
+    async (acc, object) => {
+      if (object.type === OBJECT_TYPE.FILE) {
+        const result = await acc;
+        result[0].push(object);
+        return acc;
+      }
+      const [deepFiles, deepFolders] = await Promise.all([
+        Objects.findAll({
+          where: {
+            type: OBJECT_TYPE.FILE,
+            path: { [Op.like]: generateLikeSyntax(object.path, { start: '' }) },
+          },
+        }),
+        Objects.findAll({
+          where: {
+            type: OBJECT_TYPE.FOLDER,
+            path: { [Op.like]: generateLikeSyntax(object.path, { start: '' }) },
+          },
+        }),
+      ]);
+      const result = await acc;
+      result[0].push(...deepFiles);
+      result[1].push(...deepFolders);
+      return result;
+    },
+    Promise.resolve([[], []]) as Promise<[Objects[], Objects[]]>,
   );
 
   if (files.length) {

@@ -119,6 +119,15 @@ if (process.contextIsolated) {
         //   }
         // });
       },
+      deleteObjects: (opts: { connectionId: number; ids: string[] }) =>
+        ipcRenderer
+          .invoke(ipc.MAIN_API, {
+            command: 'objects:deleteObjects',
+            connectionId: opts.connectionId,
+            ids: opts.ids,
+          })
+          .then(({ results, ack }) => ack && results?.shift())
+          .then((r) => r?.result),
       copyObjects: (opts: {
         connectionId: number;
         sourceIds: string[];

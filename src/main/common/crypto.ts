@@ -1,7 +1,6 @@
 /**
  * Small crypto utility
- * Benjamin Maggi 2026
- * LIC: MIT
+ * Copyright: Benjamin Maggi 2026
  */
 
 import path from 'path';

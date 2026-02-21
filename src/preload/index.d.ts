@@ -41,6 +41,7 @@ export declare global {
         after?: number;
         limit?: number;
       }) => Promise<{ hasNextPage: boolean; items: unknown[] } | undefined>;
+      deleteObjects: (opts: { connectionId: number; ids: string[] }) => Promise<void>;
       createFile: (opts: {
         id: string;
         connectionId: number;

@@ -1,8 +1,8 @@
 import { Flex, Space, Button, Divider } from 'antd';
-import { SearchOutlined, DeleteOutlined } from '@ant-design/icons';
+import { SearchOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 
 interface DataType {
-  id?: string;
+  id: string;
   key?: React.Key;
   type: number;
   path: string;
@@ -34,6 +34,21 @@ export default function FileToolbar({
     }
   };
 
+  const handleCreateFolder = async () => {
+    if (!connectionId) return;
+    try {
+      await window.objects.createFolder({
+        basename: 'music/jazz',
+        // basename: 'music/jazz',
+        // basename: 'music',
+        connectionId,
+      });
+      await refreshList(connectionId);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   return (
     <Flex wrap gap="small" align="center">
       <Space.Compact>
@@ -41,7 +56,7 @@ export default function FileToolbar({
       </Space.Compact>
       <Divider vertical />
       <Space.Compact>
-        <Button icon={<SearchOutlined />}></Button>
+        <Button icon={<PlusOutlined />} onClick={handleCreateFolder}></Button>
         <Button icon={<SearchOutlined />}></Button>
       </Space.Compact>
       <Divider vertical />

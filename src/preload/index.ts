@@ -119,6 +119,16 @@ if (process.contextIsolated) {
         //   }
         // });
       },
+      createFolder: (opts: { connectionId: number; basename?: string; dirname?: string }) =>
+        ipcRenderer
+          .invoke(ipc.MAIN_API, {
+            command: 'objects:createFolder',
+            connectionId: opts.connectionId,
+            dirname: opts.dirname,
+            basename: opts.basename,
+          })
+          .then(({ results, ack }) => ack && results?.shift())
+          .then((r) => r?.result),
       deleteObjects: (opts: { connectionId: number; ids: string[] }) =>
         ipcRenderer
           .invoke(ipc.MAIN_API, {

@@ -108,7 +108,6 @@ export async function createFile({ onProgress, ...data }) {
   }
 }
 
-
 /**
  * @param {function(event, {basename: string, total: number, loaded: number})} onProgress
  * @param {{localPath: string, dirname: string, ids: Array<number>}} data
@@ -132,7 +131,7 @@ export async function downloadObjects({ onProgress, ...data }) {
       ipcRenderer.off(channel, onProgress);
     }
   }
-};
+}
 
 /**
  * @param {{ids: Array<number>}} data

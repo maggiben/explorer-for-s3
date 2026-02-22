@@ -14,6 +14,8 @@ export declare global {
     ipcRenderer: Electron.IpcRenderer;
     api: {
       getFilePath: (file: File) => string;
+      startDrag: (payload: { connectionId: number; path: string; basename?: string }) => void;
+      getSignedUrlForDrag: (connectionId: number, path: string) => Promise<string | undefined>;
     };
     commands: {
       showOpenDialog: (options: OpenDialogOptions) => Promise<OpenDialogReturnValue>;
@@ -52,6 +54,11 @@ export declare global {
           progress: { loaded: number; total: number; part: number },
         ) => void;
         onEnd?: () => void;
+      }) => Promise<unknown>;
+      createFolder: (opts: {
+        connectionId: number;
+        basename?: string;
+        dirname?: string;
       }) => Promise<unknown>;
       copyObjects: (opts: {
         connectionId: number;

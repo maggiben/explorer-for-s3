@@ -164,7 +164,10 @@ export async function createFolder({
 
   try {
     await object.save();
-    await s3.putObject(object.path, connectionId);
+    await s3.putObject(object.path, connectionId, {
+      Body: new Uint8Array(0),
+      ContentLength: 0,
+    });
     return object.toJSON();
   } catch (error) {
     console.error(error);
@@ -197,7 +200,7 @@ export async function createFile({
   const basename = path.basename(localPath);
   const object = new Objects({
     type: OBJECT_TYPE.FILE,
-    path: dirname || null ? `${dirname}/${basename}` : `${basename}`,
+    path: dirname ? `${dirname.split('/').slice(0, -1).join('/')}/${basename}` : `${basename}`,
     storageClass: STORAGE_CLASS.STANDARD,
     connectionId,
   });
@@ -208,10 +211,11 @@ export async function createFile({
   const onEnd = onEndChannel ? () => $event.sender.send(onEndChannel, object.toJSON()) : null;
 
   if (object.dirname) {
+    // const parentPath = `${String(object.dirname).replace(/\/+$/, '')}/`;
     const parent = await Objects.findOne({
       where: {
         type: OBJECT_TYPE.FOLDER,
-        path: `${object.dirname}/`,
+        // path: `${object.dirname}/`,
       },
     });
 

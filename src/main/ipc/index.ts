@@ -22,6 +22,7 @@ interface IMessage {
   ids?: string[];
   connectionId?: number;
   dirname?: string;
+  basename?: string;
   localPath?: string;
   onProgressChannel?: string;
   onEndChannel?: string;
@@ -216,6 +217,20 @@ interface IMessage {
                         onProgressChannel: arg.onProgressChannel,
                         onEndChannel: arg.onEndChannel,
                         connectionId: arg.connectionId,
+                      });
+                      return { result, ack: new Date().getTime() };
+                    } catch (err) {
+                      console.error(err);
+                      break;
+                    }
+                  }
+                  case 'createFolder': {
+                    try {
+                      if (!arg.connectionId || (!arg.dirname && !arg.basename)) break;
+                      const result = await Objects.createFolder({
+                        connectionId: arg.connectionId,
+                        dirname: arg.dirname,
+                        basename: arg.basename,
                       });
                       return { result, ack: new Date().getTime() };
                     } catch (err) {

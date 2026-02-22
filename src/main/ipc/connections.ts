@@ -86,7 +86,10 @@ export async function upsert({
 }
 
 // eslint-disable-next-line prettier/prettier
-export async function get(id: number, json = true): Promise<ReturnType<Connections['toJSON']> | Connections | undefined> {
+export async function get(
+  id: number,
+  json = true,
+): Promise<ReturnType<Connections['toJSON']> | Connections | undefined> {
   try {
     const settings = await Connections.findOne({ where: { id } });
 

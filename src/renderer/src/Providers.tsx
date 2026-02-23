@@ -1,6 +1,5 @@
 import React from 'react';
 import { Provider as JotaiProvider } from 'jotai';
-import { theme } from 'antd';
 import { settingsAtom } from './atoms/settings';
 import { useHydrateAtoms } from 'jotai/utils';
 import type { ISettings } from '../../types/ISettings';

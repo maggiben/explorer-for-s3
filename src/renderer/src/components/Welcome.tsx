@@ -11,8 +11,6 @@ export default function Welcome() {
   const [settings, setSettings] = useAtom(settingsAtom);
 
   const ipcHandle = (): void => window.electron.ipcRenderer.send('ping');
-  const update = () =>
-    window.electron.ipcRenderer.invoke(ipc.MAIN_API, { ts: new Date().getTime() });
 
   const darkMode = async () => {
     const { results } = await window.electron.ipcRenderer.invoke(ipc.MAIN_API, {

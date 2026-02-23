@@ -2,7 +2,6 @@ import type { DependencyList } from 'react';
 import { useEffect } from 'react';
 import { useAtom } from 'jotai';
 import { recentAtom } from '@renderer/atoms/recent';
-import ipc from '../../../shared/constants/ipc';
 
 export default function useRecent<T>(
   deps?: DependencyList,

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { FolderOutlined, FileOutlined } from '@ant-design/icons';
 import type { TableColumnsType, TableProps } from 'antd';
 import { Flex, Table, Progress, notification, Divider } from 'antd';
@@ -250,26 +250,22 @@ const DOWNLOAD_URL_MIME = 'application/octet-stream';
 
 export default function Browser() {
   const params = useParams();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [data, setData] = useState<Omit<DataType, 'children'>[]>([]);
   const [selected, setSelected] = useState<DataType[]>([]);
   const [api, contextHolder] = notification.useNotification();
   const connectionId = params.id ? parseInt(params.id, 10) : undefined;
   const dragUrlRef = useRef<{ path: string; url: string } | null>(null);
 
-  const refreshList = (connectionId?: number): Promise<void> => {
+  const refreshList = useCallback((connectionId?: number): Promise<void> => {
     if (!connectionId || !Number.isFinite(connectionId)) return Promise.resolve(void 0);
     setLoading(true);
     return window.connections
       .connect(connectionId)
-      .then((result) => {
-        console.log('result', result);
-        return result;
-      })
       .then((result) => setData(Array.isArray(result) ? result : []))
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
-  };
+  }, []);
 
   const treeData = useMemo(() => transformPlainS3PathToTreeTableData(data), [data]);
 
@@ -314,6 +310,16 @@ export default function Browser() {
         localPaths.map(async (localPath, index) => {
           const rate = 1 / localPaths.length;
           const id = window.crypto.randomUUID();
+          api.open({
+            key: id,
+            title: `Starting ${localPath}`,
+            description: (
+              <Flex gap="small" vertical>
+                <Progress percent={0} />
+              </Flex>
+            ),
+            duration: false,
+          });
           const newFile = await window.objects.createFile({
             id,
             connectionId,
@@ -327,7 +333,7 @@ export default function Browser() {
               const progress = Math.round((loaded / total) * 100);
               api.open({
                 key: id,
-                title: `file ${localPath} progress`,
+                title: `Downloading ${localPath}`,
                 description: (
                   <Flex gap="small" vertical>
                     <Progress percent={progress} />
@@ -355,8 +361,14 @@ export default function Browser() {
   };
 
   useEffect(() => {
-    refreshList(connectionId);
-  }, [connectionId]);
+    if (connectionId && Number.isFinite(connectionId)) {
+      window.connections
+        .connect(connectionId)
+        .then((result) => setData(Array.isArray(result) ? result : []))
+        .catch((err) => console.error(err))
+        .finally(() => setLoading(false));
+    }
+  }, [connectionId, refreshList]);
 
   return (
     <Flex
@@ -366,9 +378,6 @@ export default function Browser() {
       }}
       onDrop={(event) => {
         !treeData.length && handleDrop(event);
-      }}
-      style={{
-        maxHeight: 'calc(100vh - 80px)',
       }}
     >
       {contextHolder}
@@ -386,7 +395,6 @@ export default function Browser() {
             flex: 1,
             flexGrow: 1,
             overflow: 'auto',
-            height: '100vh',
             // maxHeight: 'calc(100vh - 80px)',
           }}
         >
@@ -398,9 +406,7 @@ export default function Browser() {
             pagination={false}
             sticky
             loading={loading}
-            style={{
-              height: 'calc(100vh + 200px)',
-            }}
+            scroll={{ y: 'calc(100vh - 180px)' }}
             onRow={(record) => {
               return {
                 draggable: true,
@@ -460,6 +466,16 @@ export default function Browser() {
                         localPaths.map(async (localPath, index) => {
                           const rate = 1 / localPaths.length;
                           const id = window.crypto.randomUUID();
+                          api.open({
+                            key: id,
+                            title: `Starting ${localPath}`,
+                            description: (
+                              <Flex gap="small" vertical>
+                                <Progress percent={0} />
+                              </Flex>
+                            ),
+                            duration: false,
+                          });
                           const newFile = await window.objects.createFile({
                             id,
                             connectionId,
@@ -473,7 +489,7 @@ export default function Browser() {
                               const progress = Math.round((loaded / total) * 100);
                               api.open({
                                 key: id,
-                                title: `file ${localPath} progress`,
+                                title: `Downloading ${localPath}`,
                                 description: (
                                   <Flex gap="small" vertical>
                                     <Progress percent={progress} />

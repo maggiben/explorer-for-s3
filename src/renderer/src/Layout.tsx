@@ -1,18 +1,10 @@
 import React from 'react';
-import {
-  ClockCircleOutlined,
-  HeartOutlined,
-  UserOutlined,
-  FolderOutlined,
-  HddOutlined,
-  HomeOutlined,
-} from '@ant-design/icons';
+import { ClockCircleOutlined, FolderOutlined, HomeOutlined } from '@ant-design/icons';
 import { Routes, Route, HashRouter, Link } from 'react-router';
 import type { MenuProps } from 'antd';
 import { ConfigProvider, Breadcrumb, Layout, Menu, theme } from 'antd';
 import type { SiderTheme } from 'antd/es/layout/Sider';
-import { useAtom, useAtomValue } from 'jotai';
-import { themeAtom } from './atoms/theme';
+import { useAtom } from 'jotai';
 import { settingsAtom } from './atoms/settings';
 import useRecent from './hooks/useRecent';
 
@@ -21,7 +13,7 @@ import Browser from './components/Browser/Browser';
 import Welcome from './components/Welcome';
 import { mergeDeep } from '../../shared/lib/utils';
 
-const { Header, Content, Sider } = Layout;
+const { Content, Sider } = Layout;
 
 // const settings: MenuProps['items'] = [UserOutlined].map((icon, index) => {
 //   const key = String(index + 1);

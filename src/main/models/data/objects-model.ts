@@ -1,5 +1,4 @@
 import path from 'path';
-import { randomUUID } from 'crypto';
 import * as OBJECT_TYPE from '../../../shared/constants/object-type';
 import * as STORAGE_CLASS from '../../../shared/constants/storage-class';
 import { connect } from '../../common/database';

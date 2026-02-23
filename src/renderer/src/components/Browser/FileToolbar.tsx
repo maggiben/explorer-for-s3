@@ -1,5 +1,12 @@
 import { Flex, Space, Button, Divider, Input } from 'antd';
-import { SearchOutlined, DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import {
+  SearchOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+  CopyOutlined,
+  ScissorOutlined,
+  CopyFilled,
+} from '@ant-design/icons';
 
 interface DataType {
   id: string;
@@ -38,7 +45,7 @@ export default function FileToolbar({
     if (!connectionId) return;
     try {
       await window.objects.createFolder({
-        basename: 'music/classical',
+        basename: 'music',
         // basename: 'music/jazz',
         // basename: 'music',
         connectionId,
@@ -56,14 +63,21 @@ export default function FileToolbar({
   return (
     <Flex wrap gap="small" align="center">
       <Space.Compact>
-      <Button icon={<PlusOutlined />} onClick={handleCreateFolder}></Button>
+        <Button icon={<PlusOutlined />} onClick={handleCreateFolder}></Button>
         <Button icon={<DeleteOutlined />} shape="square" danger onClick={handleDelete}></Button>
       </Space.Compact>
       <Divider vertical />
       <Space.Compact>
-        <Input defaultValue="" />
-        <Button icon={<SearchOutlined />} onClick={handleSearch}></Button>
+        <Button icon={<ScissorOutlined />}></Button>
+        <Button icon={<CopyOutlined />}></Button>
+        <Button icon={<CopyFilled />}></Button>
       </Space.Compact>
+      <Flex justify="end" flex={1}>
+        <Space.Compact>
+          <Input defaultValue="" />
+          <Button icon={<SearchOutlined />} onClick={handleSearch}></Button>
+        </Space.Compact>
+      </Flex>
     </Flex>
   );
 }

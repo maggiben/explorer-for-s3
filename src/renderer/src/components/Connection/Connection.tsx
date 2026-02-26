@@ -1,11 +1,10 @@
 import type { FormProps } from 'antd';
 import { useNavigate, useParams } from 'react-router';
 import { useEffect, useState } from 'react';
-import { Button, Typography, Checkbox, Form, Input, Select, Space } from 'antd';
+import { Button, Typography, Checkbox, Form, Input, Space } from 'antd';
 import Icon from '@ant-design/icons';
 import { connectionAtom } from '@renderer/atoms/connection';
 import { useAtom } from 'jotai';
-import regions from '../../../../shared/constants/regions.json';
 import { getRandomPassword, getRandomRange } from '../../../../shared/lib/utils';
 import s3Icon from '../../assets/icons/s3.svg?react';
 import useRecent from '@renderer/hooks/useRecent';

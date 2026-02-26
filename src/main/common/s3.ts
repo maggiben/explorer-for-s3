@@ -172,9 +172,11 @@ export async function getSignedUrl(path, { expiresIn = 24 * 60 * 60 } = {}, conn
 /**
  * https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/clients/client-s3/classes/getobjectcommand.html
  * @param {string} path
+ * @param {number} connectionId
+ * @param {{ abortSignal?: AbortSignal }} [options]
  * @returns {Promise<GetObjectCommandOutput>}
  */
-export async function getObject(path, connectionId) {
+export async function getObject(path, connectionId, options?: { abortSignal?: AbortSignal }) {
   const connection = await get(connectionId, false);
   if (!connection) return;
   const client = new S3Client({
@@ -191,7 +193,9 @@ export async function getObject(path, connectionId) {
     Key: path,
   });
 
-  return client.send(getObjectCommand);
+  return client.send(getObjectCommand, {
+    abortSignal: options?.abortSignal,
+  });
 }
 
 /**
@@ -227,9 +231,13 @@ export async function putObject(path, connectionId, options = {}) {
  * @param {Buffer|Stream} content
  * @param {Object} options
  * @param {function({Bucket: string, Key: string, loaded: number, part: number, total: number})} onProgress
+ * @param {AbortController} [abortController]
  * @returns {Promise<CompleteMultipartUploadCommandOutput | AbortMultipartUploadCommandOutput>}
  */
-export async function upload({ path, content, options, onProgress }, connectionId) {
+export async function upload(
+  { path, content, options, onProgress, abortController },
+  connectionId,
+) {
   const connection = await get(connectionId, false);
   if (!connection) return;
   const client = new S3Client({
@@ -249,6 +257,7 @@ export async function upload({ path, content, options, onProgress }, connectionI
       Key: path,
       Body: content,
     },
+    ...(abortController ? { abortController } : {}),
   });
 
   if (onProgress) {

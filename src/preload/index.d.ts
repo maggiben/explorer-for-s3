@@ -66,6 +66,19 @@ export declare global {
         targetDirname: string;
         move?: boolean;
       }) => Promise<unknown[] | undefined>;
+      abortCreateFile: (operationId: string) => Promise<unknown>;
+      downloadObjects: (opts: {
+        operationId?: string;
+        connectionId: number;
+        localPath: string;
+        dirname?: string;
+        ids: string[];
+        onProgress?: (
+          event: unknown,
+          progress: { basename: string; total: number; loaded: number },
+        ) => void;
+      }) => Promise<void>;
+      abortDownloadObjects: (operationId: string) => Promise<unknown>;
     };
   }
 }

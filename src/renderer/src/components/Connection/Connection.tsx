@@ -115,7 +115,7 @@ export default function Connection() {
           name="region"
           rules={[{ required: true, message: 'Please input your region!' }]}
         >
-          <Select
+          {/* <Select
             showSearch={{
               filterOption: (input, option) =>
                 (option?.label ?? '').toLowerCase().includes(input.toLowerCase()),
@@ -126,13 +126,21 @@ export default function Connection() {
               value: region.code,
               label: region.code,
             }))}
-          />
+          /> */}
+          <Input disabled={!isEditing} />
         </Form.Item>
 
         <Form.Item<FieldType>
           label="Bucket"
           name="bucket"
           rules={[{ required: true, message: 'Please input your bucket!' }]}
+        >
+          <Input disabled={!isEditing} />
+        </Form.Item>
+        <Form.Item<FieldType>
+          label="Endpoint"
+          name="endpoint"
+          rules={[{ required: false, message: 'Please input your endpoint!' }]}
         >
           <Input disabled={!isEditing} />
         </Form.Item>

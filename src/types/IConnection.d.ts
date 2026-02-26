@@ -3,6 +3,7 @@ export interface IConnection {
   accessKeyId: string;
   secretAccessKey: string;
   region: string;
+  endpoint?: string;
   bucket: string;
   remember?: boolean;
 }

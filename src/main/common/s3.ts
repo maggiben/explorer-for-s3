@@ -24,6 +24,8 @@ export async function syncObjectsFromS3(connectionId: number) {
   if (!connection) return;
   const client = new S3Client({
     region: connection.region,
+    endpoint: connection?.endpoint,
+    forcePathStyle: !!connection?.endpoint,
     credentials: {
       accessKeyId: connection.accessKeyId,
       secretAccessKey: connection.secretAccessKey,
@@ -126,6 +128,8 @@ export async function headObject(path, connectionId: number, options?: Record<st
   if (!connection) return;
   const client = new S3Client({
     region: connection.region,
+    endpoint: connection?.endpoint,
+    forcePathStyle: !!connection?.endpoint,
     credentials: {
       accessKeyId: connection.accessKeyId,
       secretAccessKey: connection.secretAccessKey,
@@ -150,6 +154,8 @@ export async function getSignedUrl(path, { expiresIn = 24 * 60 * 60 } = {}, conn
   if (!connection) return;
   const client = new S3Client({
     region: connection.region,
+    endpoint: connection?.endpoint,
+    forcePathStyle: !!connection?.endpoint,
     credentials: {
       accessKeyId: connection.accessKeyId,
       secretAccessKey: connection.secretAccessKey,
@@ -173,6 +179,8 @@ export async function getObject(path, connectionId) {
   if (!connection) return;
   const client = new S3Client({
     region: connection.region,
+    endpoint: connection?.endpoint,
+    forcePathStyle: !!connection?.endpoint,
     credentials: {
       accessKeyId: connection.accessKeyId,
       secretAccessKey: connection.secretAccessKey,
@@ -197,6 +205,8 @@ export async function putObject(path, connectionId, options = {}) {
   if (!connection) return;
   const client = new S3Client({
     region: connection.region,
+    endpoint: connection?.endpoint,
+    forcePathStyle: !!connection?.endpoint,
     credentials: {
       accessKeyId: connection.accessKeyId,
       secretAccessKey: connection.secretAccessKey,
@@ -224,6 +234,8 @@ export async function upload({ path, content, options, onProgress }, connectionI
   if (!connection) return;
   const client = new S3Client({
     region: connection.region,
+    endpoint: connection?.endpoint,
+    forcePathStyle: !!connection?.endpoint,
     credentials: {
       accessKeyId: connection.accessKeyId,
       secretAccessKey: connection.secretAccessKey,
@@ -258,6 +270,8 @@ export async function copyObject(sourceKey: string, destKey: string, connectionI
   if (!connection) return;
   const client = new S3Client({
     region: connection.region,
+    endpoint: connection?.endpoint,
+    forcePathStyle: !!connection?.endpoint,
     credentials: {
       accessKeyId: connection.accessKeyId,
       secretAccessKey: connection.secretAccessKey,
@@ -283,6 +297,8 @@ export async function deleteObjects(paths: string[], connectionId) {
   if (!connection) return;
   const client = new S3Client({
     region: connection.region,
+    endpoint: connection?.endpoint,
+    forcePathStyle: !!connection?.endpoint,
     credentials: {
       accessKeyId: connection.accessKeyId,
       secretAccessKey: connection.secretAccessKey,

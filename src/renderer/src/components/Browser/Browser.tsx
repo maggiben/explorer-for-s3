@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { FolderOutlined, FileOutlined } from '@ant-design/icons';
 import type { TableColumnsType, TableProps } from 'antd';
-import { Flex, Table, Progress, notification, Divider } from 'antd';
+import { Flex, Table, Progress, notification, Divider, Space, Button } from 'antd';
 import { useParams } from 'react-router';
 import { toHumanSize } from '../../../../shared/lib/utils';
 import { FOLDER, FILE } from '../../../../shared/constants/object-type';
@@ -310,6 +310,14 @@ export default function Browser() {
         localPaths.map(async (localPath, index) => {
           const rate = 1 / localPaths.length;
           const id = window.crypto.randomUUID();
+          const cancelButton = (
+            <Space>
+              <Button type="primary" size="small" onClick={() => api.destroy(id)}>
+                Cancel
+              </Button>
+            </Space>
+          );
+
           api.open({
             key: id,
             title: `Starting ${localPath}`,
@@ -318,6 +326,7 @@ export default function Browser() {
                 <Progress percent={0} />
               </Flex>
             ),
+            btn: cancelButton,
             duration: false,
           });
           const newFile = await window.objects.createFile({
@@ -339,6 +348,7 @@ export default function Browser() {
                     <Progress percent={progress} />
                   </Flex>
                 ),
+                btn: cancelButton,
                 duration: false,
               });
               console.log('progress', progress);
@@ -466,6 +476,13 @@ export default function Browser() {
                         localPaths.map(async (localPath, index) => {
                           const rate = 1 / localPaths.length;
                           const id = window.crypto.randomUUID();
+                          const cancelButton = (
+                            <Space>
+                              <Button type="primary" size="small" onClick={() => api.destroy(id)}>
+                                Cancel
+                              </Button>
+                            </Space>
+                          );
                           api.open({
                             key: id,
                             title: `Starting ${localPath}`,
@@ -474,6 +491,7 @@ export default function Browser() {
                                 <Progress percent={0} />
                               </Flex>
                             ),
+                            btn: cancelButton,
                             duration: false,
                           });
                           const newFile = await window.objects.createFile({
@@ -495,6 +513,7 @@ export default function Browser() {
                                     <Progress percent={progress} />
                                   </Flex>
                                 ),
+                                btn: cancelButton,
                                 duration: false,
                               });
                               console.log('progress', progress);

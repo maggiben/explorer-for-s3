@@ -6,6 +6,7 @@ export const connectionAtom = atom<{
   secretAccessKey: string;
   region: string;
   bucket: string;
+  endpoint?: string;
   remember?: boolean;
   id?: number;
 }>({

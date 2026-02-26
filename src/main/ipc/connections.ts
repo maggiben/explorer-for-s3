@@ -56,6 +56,7 @@ export async function upsert({
   secretAccessKey,
   region,
   bucket,
+  endpoint,
   remember = true,
 }: {
   id?: number;
@@ -63,6 +64,7 @@ export async function upsert({
   secretAccessKey: string;
   region: string;
   bucket: string;
+  endpoint?: string;
   remember?: boolean;
 }): Promise<ReturnType<Connections['toJSON']> | undefined> {
   try {
@@ -72,6 +74,7 @@ export async function upsert({
       secretAccessKey,
       region,
       bucket,
+      endpoint,
       remember,
     });
     const result = await Connections.findOne({ where: { id } });

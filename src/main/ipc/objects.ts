@@ -227,40 +227,25 @@ export async function createFile({
 
   try {
     await object.save();
-    // await s3.upload(
-    //   {
-    //     path: object.path,
-    //     content: fs.createReadStream(localPath),
-    //     options: {
-    //       ContentType: mimeTypes.lookup(basename),
-    //     },
-    //     onProgress,
-    //   },
-    //   connectionId,
-    // );
-    // const objectHeaders = await s3.headObject(object.path, connectionId);
-
-    // object.size = objectHeaders?.ContentLength ?? 0;
-    // object.lastModified = objectHeaders?.LastModified ?? new Date();
-    // await object.save();
-    s3.upload(
-      {
-        path: object.path,
-        content: fs.createReadStream(localPath),
-        options: {
-          ContentType: mimeTypes.lookup(basename),
+    try {
+      await s3.upload(
+        {
+          path: object.path,
+          content: fs.createReadStream(localPath),
+          options: {
+            ContentType: mimeTypes.lookup(basename),
+          },
+          onProgress,
         },
-        onProgress,
-      },
-      connectionId,
-    )
-      .then(async () => {
-        const objectHeaders = await s3.headObject(object.path, connectionId);
-        object.size = objectHeaders?.ContentLength ?? 0;
-        object.lastModified = objectHeaders?.LastModified ?? new Date();
-        await object.save();
-      })
-      .finally(onEnd);
+        connectionId,
+      );
+      const objectHeaders = await s3.headObject(object.path, connectionId);
+      object.size = objectHeaders?.ContentLength ?? 0;
+      object.lastModified = objectHeaders?.LastModified ?? new Date();
+      await object.save();
+    } finally {
+      onEnd?.();
+    }
     return object.toJSON();
   } catch (error) {
     await object.destroy();

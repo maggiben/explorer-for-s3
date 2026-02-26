@@ -19,6 +19,7 @@ class Connections extends Model<
   declare accessKeyId: CreationOptional<string>;
   declare secretAccessKey: CreationOptional<string>;
   declare region: CreationOptional<string>;
+  declare endpoint: CreationOptional<string>;
   declare bucket: CreationOptional<string>;
   declare createdAt: CreationOptional<Date>;
   declare updatedAt: CreationOptional<Date>;
@@ -73,6 +74,11 @@ Connections.init(
     region: {
       type: DataTypes.STRING,
       allowNull: false,
+    },
+
+    endpoint: {
+      type: DataTypes.STRING,
+      allowNull: true,
     },
 
     bucket: {

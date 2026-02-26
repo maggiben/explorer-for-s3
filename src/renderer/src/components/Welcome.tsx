@@ -1,5 +1,5 @@
-import { Button, Typography, Flex, Col, Row, theme, Space, Divider, Avatar } from 'antd';
-import { UserOutlined } from '@ant-design/icons';
+import { Button, Typography, Flex, Col, Row, theme, Space, Divider, Avatar, Switch } from 'antd';
+import { BulbFilled, MoonFilled, UserOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router';
 import Versions from './Versions';
 import ipc from '../../../shared/constants/ipc';
@@ -55,14 +55,6 @@ export default function Welcome() {
     });
   };
 
-  const getRecent = () =>
-    window.electron.ipcRenderer.invoke(
-      ipc.MAIN_API,
-      { command: 'connections:getRecent' },
-      { command: 'connections:getAll' },
-      { command: 'connections:geto' },
-    );
-
   return (
     <Flex vertical justify="space-between" style={{ height: '100%' }}>
       <Space align="center">
@@ -74,28 +66,23 @@ export default function Welcome() {
       </Space>
       <Flex vertical style={{ flexGrow: 1 }}>
         <Row>
-          <Col span={12}>
-            <Button type="primary" onClick={() => ipcHandle()}>
-              Ping
-            </Button>
-          </Col>
           <Divider />
           <Col span={24}>
             <Space>
-              <Button onClick={() => navigate('/new')}>Nav</Button>
-              <Button onClick={() => darkMode()}>Dark</Button>
-              <Button onClick={() => lightMode()}>Light</Button>
-            </Space>
-          </Col>
-          <Col span={24}>
-            <Space>
-              <Button
-                onClick={async () => {
-                  const result = await getRecent();
-                  console.log(result);
+              <Button onClick={() => navigate('/new')} type="primary">
+                New Connection
+              </Button>
+              Mode:
+              <Switch
+                defaultChecked
+                onChange={(e) => {
+                  e ? lightMode() : darkMode();
                 }}
-              >
-                recent
+                checkedChildren={<BulbFilled />}
+                unCheckedChildren={<MoonFilled />}
+              />
+              <Button type="primary" onClick={() => ipcHandle()}>
+                Ping
               </Button>
             </Space>
           </Col>

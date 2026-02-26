@@ -101,6 +101,7 @@ if (process.contextIsolated) {
         return ipcRenderer
           .invoke(ipc.MAIN_API, {
             command: 'objects:createFile',
+            operationId: opts.id,
             connectionId: opts.connectionId,
             localPath: opts.localPath,
             dirname: opts.dirname,
@@ -154,6 +155,46 @@ if (process.contextIsolated) {
           })
           .then(({ results, ack }) => ack && results?.shift())
           .then((r) => r?.result),
+      abortCreateFile: (operationId: string) =>
+        ipcRenderer.invoke(ipc.MAIN_API, {
+          command: 'objects:abortCreateFile',
+          operationId,
+        }),
+      downloadObjects: (opts: {
+        operationId?: string;
+        connectionId: number;
+        localPath: string;
+        dirname?: string;
+        ids: string[];
+        onProgress?: (event: IpcRendererEvent, progress: unknown) => void;
+      }) => {
+        const id = opts.operationId ?? Math.random().toString(36);
+        const progressChannel = `downloadObjects.onProgress:${id}`;
+        if (typeof opts?.onProgress === 'function') {
+          ipcRenderer.on(progressChannel, opts.onProgress);
+        }
+        return ipcRenderer
+          .invoke(ipc.MAIN_API, {
+            command: 'objects:downloadObjects',
+            operationId: id,
+            connectionId: opts.connectionId,
+            localPath: opts.localPath,
+            dirname: opts.dirname ?? '/',
+            ids: opts.ids,
+            onProgressChannel: progressChannel,
+          })
+          .then(({ ack }) => (ack ? undefined : Promise.reject(new Error('Download failed'))))
+          .finally(() => {
+            if (typeof opts?.onProgress === 'function') {
+              ipcRenderer.off(progressChannel, opts.onProgress);
+            }
+          });
+      },
+      abortDownloadObjects: (operationId: string) =>
+        ipcRenderer.invoke(ipc.MAIN_API, {
+          command: 'objects:abortDownloadObjects',
+          operationId,
+        }),
     });
   } catch (error) {
     console.error(error);

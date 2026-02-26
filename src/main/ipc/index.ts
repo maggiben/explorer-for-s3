@@ -13,7 +13,13 @@ import { IConnection } from 'types/IConnection';
 type TBucketCommands = 'buckets:add' | 'buckets:getAll';
 type TConnectionCommands = 'connections:add' | 'connections:getAll';
 type TSettingsCommands = 'settings:add' | 'settings:getAll';
-type TObjectCommands = 'objects:getObjects' | 'objects:createFile' | 'objects:copyObjects';
+type TObjectCommands =
+  | 'objects:getObjects'
+  | 'objects:createFile'
+  | 'objects:abortCreateFile'
+  | 'objects:downloadObjects'
+  | 'objects:abortDownloadObjects'
+  | 'objects:copyObjects';
 interface IMessage {
   command: TBucketCommands | TSettingsCommands | TConnectionCommands | TObjectCommands;
   connection?: IConnection;
@@ -22,10 +28,11 @@ interface IMessage {
   ids?: string[];
   connectionId?: number;
   dirname?: string;
-  basename?: string;
   localPath?: string;
+  basename?: string;
   onProgressChannel?: string;
   onEndChannel?: string;
+  operationId?: string;
   sourceIds?: string[];
   targetDirname?: string;
   move?: boolean;
@@ -212,6 +219,7 @@ interface IMessage {
                       if (arg.connectionId == null || arg.localPath == null) break;
                       const result = await Objects.createFile({
                         $event: event,
+                        operationId: arg.operationId,
                         localPath: arg.localPath,
                         dirname: arg.dirname,
                         onProgressChannel: arg.onProgressChannel,
@@ -219,10 +227,43 @@ interface IMessage {
                         connectionId: arg.connectionId,
                       });
                       return { result, ack: new Date().getTime() };
+                    } catch (error) {
+                      console.error(error);
+                      break;
+                    }
+                  }
+                  case 'abortCreateFile': {
+                    if (typeof arg.operationId === 'string') {
+                      Objects.abortCreateFile(arg.operationId);
+                      return { result: true, ack: new Date().getTime() };
+                    }
+                    break;
+                  }
+                  case 'downloadObjects': {
+                    try {
+                      if (arg.connectionId == null || !arg.ids?.length || arg.localPath == null)
+                        break;
+                      await Objects.downloadObjects({
+                        $event: event,
+                        operationId: arg.operationId,
+                        localPath: arg.localPath,
+                        dirname: arg.dirname ?? '/',
+                        ids: arg.ids,
+                        onProgressChannel: arg.onProgressChannel,
+                        connectionId: arg.connectionId,
+                      });
+                      return { result: undefined, ack: new Date().getTime() };
                     } catch (err) {
                       console.error(err);
                       break;
                     }
+                  }
+                  case 'abortDownloadObjects': {
+                    if (typeof arg.operationId === 'string') {
+                      Objects.abortDownloadObjects(arg.operationId);
+                      return { result: true, ack: new Date().getTime() };
+                    }
+                    break;
                   }
                   case 'createFolder': {
                     try {

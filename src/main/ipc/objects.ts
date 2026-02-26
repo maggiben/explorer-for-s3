@@ -2,7 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import mimeTypes from 'mime-types';
 import { Op } from 'sequelize';
-// const { NotFoundError, ConflictError } = require('../../../shared/errors');
 import * as OBJECT_TYPE from '../../shared/constants/object-type';
 import * as STORAGE_CLASS from '../../shared/constants/storage-class';
 import * as s3 from '../common/s3';
@@ -10,6 +9,12 @@ import Objects from '../models/data/objects-model';
 import { IpcMainInvokeEvent } from 'electron';
 import { serial } from '../../shared/lib/utils';
 import { generateLikeSyntax, parseKeyword } from '../common/database';
+
+/** Registry of active upload AbortControllers by operation id (renderer-provided id). */
+const uploadAbortControllers = new Map<string, AbortController>();
+
+/** Registry of active download AbortControllers by operation id. */
+const downloadAbortControllers = new Map<string, AbortController>();
 
 export async function init() {
   try {
@@ -177,7 +182,19 @@ export async function createFolder({
 }
 
 /**
+ * Abort an in-progress createFile (upload) by operation id.
+ */
+export function abortCreateFile(operationId: string): void {
+  const controller = uploadAbortControllers.get(operationId);
+  if (controller) {
+    controller.abort();
+    uploadAbortControllers.delete(operationId);
+  }
+}
+
+/**
  * @param {IpcMainInvokeEvent} $event
+ * @param {string} operationId - Renderer-provided id for abort and channels
  * @param {string} localPath
  * @param {string} dirname
  * @param {string} onProgressChannel
@@ -185,6 +202,7 @@ export async function createFolder({
  */
 export async function createFile({
   $event,
+  operationId,
   localPath = '/',
   dirname,
   onProgressChannel,
@@ -192,6 +210,7 @@ export async function createFile({
   connectionId,
 }: {
   $event: IpcMainInvokeEvent;
+  operationId?: string;
   localPath?: string;
   dirname?: string;
   onProgressChannel?: string;
@@ -207,16 +226,24 @@ export async function createFile({
   });
 
   const onProgress = onProgressChannel
-    ? (progress) => $event.sender.send(onProgressChannel, progress)
+    ? (progress: { loaded?: number; total?: number; part?: number }) =>
+        $event.sender.send(onProgressChannel, progress)
     : null;
   const onEnd = onEndChannel ? () => $event.sender.send(onEndChannel, object.toJSON()) : null;
 
+  const abortController = new AbortController();
+  if (operationId) {
+    uploadAbortControllers.set(operationId, abortController);
+  }
+
+  const cleanup = () => {
+    if (operationId) uploadAbortControllers.delete(operationId);
+  };
+
   if (object.dirname) {
-    // const parentPath = `${String(object.dirname).replace(/\/+$/, '')}/`;
     const parent = await Objects.findOne({
       where: {
         type: OBJECT_TYPE.FOLDER,
-        // path: `${object.dirname}/`,
       },
     });
 
@@ -236,6 +263,7 @@ export async function createFile({
             ContentType: mimeTypes.lookup(basename),
           },
           onProgress,
+          abortController,
         },
         connectionId,
       );
@@ -244,17 +272,31 @@ export async function createFile({
       object.lastModified = objectHeaders?.LastModified ?? new Date();
       await object.save();
     } finally {
+      cleanup();
       onEnd?.();
     }
     return object.toJSON();
   } catch (error) {
+    cleanup();
     await object.destroy();
     throw error;
   }
 }
 
 /**
+ * Abort an in-progress downloadObjects by operation id.
+ */
+export function abortDownloadObjects(operationId: string): void {
+  const controller = downloadAbortControllers.get(operationId);
+  if (controller) {
+    controller.abort();
+    downloadAbortControllers.delete(operationId);
+  }
+}
+
+/**
  * @param {IpcMainInvokeEvent} $event
+ * @param {string} [operationId] - Optional renderer-provided id for abort
  * @param {string} localPath
  * @param {string} dirname
  * @param {Array<number>} ids - Object ids
@@ -263,6 +305,7 @@ export async function createFile({
  */
 export async function downloadObjects({
   $event,
+  operationId,
   localPath = '/',
   dirname = '/',
   ids,
@@ -270,90 +313,105 @@ export async function downloadObjects({
   connectionId,
 }: {
   $event: IpcMainInvokeEvent;
+  operationId?: string;
   localPath?: string;
   dirname?: string;
   ids: string[];
   onProgressChannel?: string;
   connectionId: number;
 }) {
-  const objects = await Objects.findAll({
-    where: {
-      id: { [Op.in]: ids },
-    },
-  });
+  const abortController = new AbortController();
+  if (operationId) {
+    downloadAbortControllers.set(operationId, abortController);
+  }
+  const signal = abortController.signal;
+  const cleanup = () => {
+    if (operationId) downloadAbortControllers.delete(operationId);
+  };
 
-  if (objects.length !== ids.length) {
-    const existsIds = objects.map(({ id }) => id);
-
-    ids.forEach((id) => {
-      if (!existsIds.includes(id)) {
-        throw new Error(`not found object "${id}"`);
-      }
+  try {
+    const objects = await Objects.findAll({
+      where: {
+        id: { [Op.in]: ids },
+      },
     });
 
-    throw new Error(`not found "${ids}"`);
-  }
+    if (objects.length !== ids.length) {
+      const existsIds = objects.map((o) => o.id);
 
-  const files: Objects[] = [];
-  const onProgress = onProgressChannel
-    ? (progress) => {
-        $event.sender.send(onProgressChannel, progress);
-      }
-    : null;
-
-  await Promise.all(
-    objects.map((object) =>
-      serial(async () => {
-        if (object.type === OBJECT_TYPE.FILE) {
-          files.push(object);
-          return;
+      ids.forEach((id) => {
+        if (!existsIds.includes(id)) {
+          throw new Error(`not found object "${id}"`);
         }
+      });
 
-        const deepFiles = await Objects.findAll({
-          where: {
-            path: { [Op.like]: generateLikeSyntax(object.path, { start: '' }) },
-            type: OBJECT_TYPE.FILE,
-          },
-        });
+      throw new Error(`not found "${ids}"`);
+    }
 
-        files.push(...deepFiles);
-      }),
-    ),
-  );
+    const files: Objects[] = [];
+    const onProgress = onProgressChannel
+      ? (progress: { basename: string; total: number; loaded: number }) => {
+          $event.sender.send(onProgressChannel, progress);
+        }
+      : null;
 
-  await Promise.all(
-    files.map((file, index) =>
-      serial(async () => {
-        const result = await s3.getObject(file.path, connectionId);
-        const total = result?.ContentLength ?? 0;
-        let loaded = 0;
-        const writeStream = fs.createWriteStream(
-          path.join(localPath, ...file.path.replace(dirname, '').split(path.sep)),
-        );
-
-        const body = result?.Body as NodeJS.ReadableStream;
-        body.pipe(writeStream);
-        body.on('data', (chunk) => {
-          loaded += chunk.length;
-
-          if (onProgress) {
-            const rate = 1 / files.length;
-
-            onProgress({
-              basename: file.basename,
-              total: 100,
-              loaded: Math.round(index * rate * 100 + (loaded / total) * rate * 100),
-            });
+    await Promise.all(
+      objects.map((object) =>
+        serial(async () => {
+          if (object.type === OBJECT_TYPE.FILE) {
+            files.push(object);
+            return;
           }
-        });
 
-        return new Promise((resolve, reject) => {
-          body.on('error', reject);
-          body.on('end', resolve);
-        });
-      }),
-    ),
-  );
+          const deepFiles = await Objects.findAll({
+            where: {
+              path: { [Op.like]: generateLikeSyntax(object.path, { start: '' }) },
+              type: OBJECT_TYPE.FILE,
+            },
+          });
+
+          files.push(...deepFiles);
+        }),
+      ),
+    );
+
+    await Promise.all(
+      files.map((file, index) =>
+        serial(async () => {
+          const result = await s3.getObject(file.path, connectionId, { abortSignal: signal });
+          if (!result) return;
+          const total = result?.ContentLength ?? 0;
+          let loaded = 0;
+          const writeStream = fs.createWriteStream(
+            path.join(localPath, ...file.path.replace(dirname, '').split(path.sep)),
+          );
+
+          const body = result?.Body as NodeJS.ReadableStream;
+          body.pipe(writeStream);
+          body.on('data', (chunk: Buffer) => {
+            loaded += chunk.length;
+
+            if (onProgress) {
+              const rate = 1 / files.length;
+
+              onProgress({
+                basename: file.basename,
+                total: 100,
+                loaded: Math.round(index * rate * 100 + (loaded / total) * rate * 100),
+              });
+            }
+          });
+
+          return new Promise((resolve, reject) => {
+            body.on('error', reject);
+            body.on('end', resolve);
+          });
+        }),
+      ),
+    );
+  } finally {
+    cleanup();
+  }
 }
 
 export async function deleteObjects({

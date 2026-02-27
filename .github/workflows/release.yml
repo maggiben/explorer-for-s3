@@ -44,6 +44,8 @@ jobs:
         run: |
           npm run build
           npx electron-builder --${{ matrix.platform }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifacts (Linux)
         if: matrix.platform == 'linux'

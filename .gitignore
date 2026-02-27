@@ -9,3 +9,4 @@ AGENTS.md
 garage/data
 garage/meta
 .env
+.npmrc

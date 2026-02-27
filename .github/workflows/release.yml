@@ -17,7 +17,7 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             arch: x64
-          - os: ubuntu-latest
+          - os: ubuntu-24.04-arm
             platform: linux
             arch: arm64
           - os: macos-latest
@@ -39,7 +39,7 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --platform=${{ matrix.platform }} --arch=${{ matrix.arch }} --include=optional sharp electron-builder
 
       - name: Install Linux dependencies
         if: matrix.platform == 'linux'

@@ -51,7 +51,7 @@ jobs:
       - name: Build and package
         run: |
           npm run build
-          npx electron-builder --${{ matrix.platform }} ${{ matrix.arch && format('--{0}', matrix.arch) || '' }}
+          npx electron-builder --${{ matrix.platform }} ${{ matrix.arch && format('--{0}', matrix.arch) || '' }} --publish never
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -60,9 +60,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-linux-${{ matrix.arch }}
+          if-no-files-found: warn
           path: |
-            dist/*.AppImage
             dist/*.deb
+            dist/*.tar.gz
+            dist/*.AppImage
             dist/*.snap
 
       - name: Upload artifacts (macOS)

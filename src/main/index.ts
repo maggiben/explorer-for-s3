@@ -7,6 +7,8 @@ import { deleteForgettableConnections } from './ipc/connections';
 import './ipc';
 import './lib/dnd';
 
+app.disableHardwareAcceleration();
+
 function createWindow(): void {
   // Create the browser window.
   const mainWindow = new BrowserWindow({

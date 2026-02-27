@@ -51,7 +51,7 @@ jobs:
       - name: Build and package
         run: |
           npm run build
-          npx electron-builder --${{ matrix.platform }} ${{ matrix.arch && format('--{0}', matrix.arch) || '' }}
+          npm run build:${{ matrix.platform }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

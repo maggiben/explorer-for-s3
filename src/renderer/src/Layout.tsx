@@ -91,7 +91,7 @@ function BreadcrumbNav({
           title: <Link to={href}>{label}</Link>,
         };
       }
-      const isLast = i === segments.length - 1;
+      // const isLast = i === segments.length - 1;
       return {
         // title: isLast ? <span>{label}</span> : <Link to={href}>{label}</Link>,
         title: <span>{label}</span>,
@@ -110,6 +110,8 @@ export default function RootLayout({
   const [settings, setSettings] = useAtom(settingsAtom);
   const { buckets } = useBuckets();
   const { connections } = useConnections();
+  console.log('connections', connections);
+  console.log('buckets', buckets);
   const algorithm = settings.apparence.mode === 'dark' ? [theme.darkAlgorithm] : [];
   return (
     <HashRouter>
@@ -122,11 +124,16 @@ export default function RootLayout({
               collapsible
               collapsed={settings.apparence.sider?.collapsed}
               onCollapse={async (value) => {
+                const {
+                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                  apparence: { theme, ...apparenceSettings },
+                } = settings;
+
                 const newSettings = await window.settings.set(
                   mergeDeep({
                     ...settings,
                     apparence: {
-                      ...settings.apparence,
+                      ...apparenceSettings,
                       sider: {
                         collapsed: value,
                       },

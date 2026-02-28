@@ -23,14 +23,16 @@ export default function Browser() {
   const connectionId = parseInt(params.id!, 10);
   const dragUrlRef = useRef<{ path: string; url: string } | null>(null);
 
-  const refreshList = useCallback((id?: number): Promise<void> => {
-    if (!id || !Number.isFinite(id)) return Promise.resolve(void 0);
-    setLoading(true);
-    return window.connections
-      .connect(id)
-      .then((result) => setData(Array.isArray(result) ? result : []))
-      .catch((err) => console.error(err))
-      .finally(() => setLoading(false));
+  const refreshList = useCallback(async (id: number): Promise<void> => {
+    try {
+      setLoading(true);
+      const result = await window.connections.connect(id);
+      return setData(Array.isArray(result) ? result : []);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const treeData = useMemo(() => transformPlainS3PathToTreeTableData(data), [data]);
@@ -49,7 +51,7 @@ export default function Browser() {
 
   const runUploads = useCallback(
     async (localPaths: string[], dirname?: string) => {
-      if (connectionId == null || !Number.isFinite(connectionId)) return;
+      if (!connectionId || !Number.isFinite(connectionId)) return;
       try {
         await Promise.all(
           localPaths.map((localPath) =>
@@ -86,13 +88,9 @@ export default function Browser() {
 
   useEffect(() => {
     if (connectionId && Number.isFinite(connectionId)) {
-      window.connections
-        .connect(connectionId)
-        .then((result) => setData(Array.isArray(result) ? result : []))
-        .catch((err) => console.error(err))
-        .finally(() => setLoading(false));
+      refreshList(connectionId);
     }
-  }, [connectionId]);
+  }, [connectionId, refreshList]);
 
   const handleRowDropOnFolder = useCallback(
     async (event: React.DragEvent, folderPath: string) => {

@@ -64,13 +64,18 @@ interface IMessage {
               case 'connections': {
                 switch (action) {
                   case 'add': {
-                    if (!arg.connection) break;
-                    const result = await Connections.create(arg.connection);
-                    if (!result) break;
-                    return {
-                      result,
-                      ack: new Date().getTime(),
-                    };
+                    try {
+                      if (!arg.connection) break;
+                      const result = await Connections.create(arg.connection);
+                      if (!result) break;
+                      return {
+                        result,
+                        ack: new Date().getTime(),
+                      };
+                    } catch (error) {
+                      console.error(error);
+                      break;
+                    }
                   }
                   case 'delete': {
                     if (!arg.id) break;

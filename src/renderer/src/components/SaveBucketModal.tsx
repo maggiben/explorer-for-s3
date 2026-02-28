@@ -21,12 +21,13 @@ export default function SaveBucketModal({
     setName(e.target.value);
   }, []);
   const addSaveToItem = async () => {
+    if (!name) return;
     const payload = {
       name,
       type: 'BUCKET',
       color: '#fafafa',
       icon: 'moon',
-      connectionIds: [connectionId],
+      connectionIds: [],
     };
     const bucket = await window.buckets.add(payload);
     console.log('bucket added', payload, bucket);
@@ -69,7 +70,12 @@ export default function SaveBucketModal({
                   onChange={onNameChange}
                   onKeyDown={(e) => e.stopPropagation()}
                 />
-                <Button type="text" icon={<PlusOutlined />} onClick={addSaveToItem}>
+                <Button
+                  type="text"
+                  icon={<PlusOutlined />}
+                  onClick={addSaveToItem}
+                  disabled={!name}
+                >
                   Add item
                 </Button>
               </Space>

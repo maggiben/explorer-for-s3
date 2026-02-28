@@ -11,8 +11,8 @@ CONFIG="/etc/garage.toml"
 IMAGE="${GARAGE_IMAGE:-dxflrs/garage:v2.2.0}"
 ZONE="${GARAGE_ZONE:-dc1}"
 CAPACITY="${GARAGE_CAPACITY:-1G}"
-BUCKET="${1:-s3-explorer}"
-KEY_NAME="${2:-s3-explorer-key}"
+BUCKET="${1:-explorer-for-s3}"
+KEY_NAME="${2:-explorer-for-s3-key}"
 
 # Image is FROM scratch: only /garage exists, no shell or PATH
 garage() {

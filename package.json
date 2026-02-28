@@ -1,5 +1,5 @@
 {
-  "name": "s3-explorer",
+  "name": "explorer-for-s3",
   "version": "1.0.1",
   "description": "An Electron application with React and TypeScript",
   "main": "./out/main/index.js",

@@ -15,12 +15,14 @@ export async function create({
   accessKeyId,
   secretAccessKey,
   region,
+  endpoint,
   bucket,
   remember = true,
 }: {
   accessKeyId: string;
   secretAccessKey: string;
   region: string;
+  endpoint?: string;
   bucket: string;
   remember?: boolean;
 }): Promise<ReturnType<Connections['toJSON']> | undefined> {
@@ -30,6 +32,7 @@ export async function create({
       accessKeyId,
       secretAccessKey,
       region,
+      endpoint,
       bucket,
       remember,
     });

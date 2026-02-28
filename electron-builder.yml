@@ -1,5 +1,5 @@
 appId: com.electron.app
-productName: s3-explorer
+productName: explorer-for-s3
 directories:
   buildResources: build
 files:
@@ -13,7 +13,7 @@ asar: true
 asarUnpack:
   - resources/**
 win:
-  executableName: s3-explorer
+  executableName: explorer-for-s3
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

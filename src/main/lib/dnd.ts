@@ -41,7 +41,7 @@ ipcMain.on(
 
     const fileName = (basename ?? path.basename(s3Path)) || 'download';
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const tempPath = path.join(os.tmpdir(), `s3-explorer-drag-${Date.now()}-${safeName}`);
+    const tempPath = path.join(os.tmpdir(), `explorer-for-s3drag-${Date.now()}-${safeName}`);
 
     try {
       fs.writeFileSync(tempPath, '');

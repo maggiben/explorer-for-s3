@@ -11,6 +11,7 @@ import { AiOutlineSave } from 'react-icons/ai';
 import { useState } from 'react';
 import SaveBucketModal from '../SaveBucketModal';
 import { IBucket } from '../../../../types/IBucket';
+import { useBuckets } from '@renderer/atoms/buckets';
 
 interface DataType {
   id: string;
@@ -32,6 +33,7 @@ export default function FileToolbar({
   connectionId: number;
   refreshList: (connectionId: number) => Promise<void>;
 }) {
+  const { set: setBuckets } = useBuckets();
   const [showSaveBucketModal, setShowSaveBucketModal] = useState(false);
   const handleSaveBucketModal = () => {
     setShowSaveBucketModal(true);
@@ -105,6 +107,7 @@ export default function FileToolbar({
             } as IBucket);
             console.log('result', result);
           }
+          await setBuckets();
           setShowSaveBucketModal(false);
         }}
         connectionId={connectionId}

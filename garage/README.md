@@ -16,7 +16,7 @@ The script will:
 2. Start the Garage container (create it if it doesn’t exist, otherwise start the existing one)
 3. Wait until Garage is ready
 4. Assign the node to a zone (`dc1`) and capacity (`1G`), then apply the layout
-5. Create bucket `s3-explorer` and API key `s3-explorer-key`, and allow the key on the bucket
+5. Create bucket `explorer-for-s3` and API key `explorer-for-s3-key`, and allow the key on the bucket
 
 At the end it prints the **Access Key** and **Secret** to use in S3 Explorer. Safe to run again (e.g. after a reboot); it will only start the container and re-run layout/bucket/key steps as needed.
 
@@ -60,7 +60,7 @@ Add a connection:
 
 - **Endpoint:** `http://localhost:3900`
 - **Region:** `garage`
-- **Access Key / Secret:** from the script output (or `garage key info s3-explorer-key` inside the container)
+- **Access Key / Secret:** from the script output (or `garage key info explorer-for-s3-key` inside the container)
 
 ## Manual commands (inside container)
 

@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 import { useEffect, useState } from 'react';
 import { Button, Typography, Checkbox, Form, Input, Space } from 'antd';
 import Icon, { DeleteOutlined } from '@ant-design/icons';
-import { connectionAtom } from '@renderer/atoms/connection';
+import { connectionAtom, useConnections } from '@renderer/atoms/connection';
 import { useAtom } from 'jotai';
 import { getRandomPassword, getRandomRange } from '../../../../shared/lib/utils';
 import s3Icon from '../../assets/icons/s3.svg?react';
@@ -20,13 +20,12 @@ const onFinishFailed: FormProps<FieldType>['onFinishFailed'] = (errorInfo) => {
   console.log('Failed:', errorInfo);
 };
 
-async function upsertConnection(connection: FieldType) {
+async function saveConnection(connection: FieldType) {
   try {
     const result = connection.id
-      ? window.connections.upsert(connection)
-      : window.connections.add(connection);
-    console.log('result', result);
-    return await result;
+      ? await window.connections.upsert(connection)
+      : await window.connections.add(connection);
+    return result;
   } catch (error) {
     console.error(error);
     return undefined;
@@ -36,6 +35,7 @@ async function upsertConnection(connection: FieldType) {
 export default function Connection() {
   const navigate = useNavigate();
   const [connection, setConnection] = useAtom(connectionAtom);
+  const { set: setConnections } = useConnections();
   const [, setRecent] = useRecent();
   const [form] = Form.useForm();
   const params = useParams();
@@ -49,6 +49,7 @@ export default function Connection() {
         secretAccessKey: '',
         region: '',
         bucket: '',
+        endpoint: '',
         remember: true,
       });
       form.resetFields();
@@ -87,11 +88,14 @@ export default function Connection() {
         onFinish={async (...args) => {
           console.log(args);
           if (isEditing) {
-            const result = await upsertConnection(...args);
-            console.log('result', result);
+            const result = await saveConnection(...args);
+            if (!result) return;
             await setRecent();
+            await setConnections();
+            navigate(`/browse/${result.id}`);
+          } else {
+            navigate(`/browse/${connection.id}`);
           }
-          return navigate(`/browse/${args.shift()?.id}`);
         }}
         onFinishFailed={onFinishFailed}
         autoComplete="off"

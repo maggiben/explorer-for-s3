@@ -32,7 +32,7 @@ function createRecentMenu(connections: { bucket: string; id: number }[]) {
   return menu;
 }
 
-export default function SiderMenu({ onSelect }: { onSelect: (key) => void }) {
+export default function SiderMenu({ onSelect }: { onSelect: (key: string) => void }) {
   const [settings] = useAtom(settingsAtom);
   const { buckets } = useBuckets();
   const [recent] = useRecent<{ bucket: string; id: number }>();
@@ -47,13 +47,6 @@ export default function SiderMenu({ onSelect }: { onSelect: (key) => void }) {
         label: <Link to={`/connections/${bucket.id}/${connection.id}`}>{connection.bucket}</Link>,
         icon: React.createElement(FolderOutlined),
       })),
-      // children: bucket.connectionIds.map(async (connectionId) => {
-      //   return {
-      //   key: connectionId,
-      //     label: <Link to={`/new/${connectionId}`}>{connectionId}</Link>,
-      //     icon: React.createElement(FolderOutlined),
-      //   };
-      // }),
     };
   });
   const recentItems = createRecentMenu(recent);
@@ -63,7 +56,7 @@ export default function SiderMenu({ onSelect }: { onSelect: (key) => void }) {
       theme={settings.apparence.mode as MenuTheme}
       defaultSelectedKeys={['1']}
       defaultOpenKeys={[]}
-      onSelect={(key) => console.log('key', key)}
+      onSelect={(e) => onSelect(e.key)}
       style={{ height: '100%', borderInlineEnd: 0 }}
       // items={recent?.length ? createRecentMenu(recent as { bucket: string; id: number }[]) : []}
       items={[...recentItems, ...bucketsItems]}

@@ -2,7 +2,7 @@ import type { FormProps } from 'antd';
 import { useNavigate, useParams } from 'react-router';
 import { useEffect, useState } from 'react';
 import { Button, Typography, Checkbox, Form, Input, Space } from 'antd';
-import Icon from '@ant-design/icons';
+import Icon, { DeleteOutlined } from '@ant-design/icons';
 import { connectionAtom } from '@renderer/atoms/connection';
 import { useAtom } from 'jotai';
 import { getRandomPassword, getRandomRange } from '../../../../shared/lib/utils';
@@ -44,15 +44,22 @@ export default function Connection() {
   useEffect(() => {
     if (!params.id || !params.id.match(/[0-9]/)) {
       setIsEditing(true);
+      setConnection({
+        accessKeyId: '',
+        secretAccessKey: '',
+        region: '',
+        bucket: '',
+        remember: true,
+      });
+      form.resetFields();
       return;
     }
     setIsEditing(false);
     window.connections
       .get(parseInt(params.id, 10))
       .then(async (connection) => {
-        console.log('connnn', connection);
         setConnection(connection);
-        await form.resetFields();
+        form.resetFields();
         await form.setFieldsValue({
           ...connection,
           secretAccessKey: getRandomPassword(getRandomRange(8, 16)),
@@ -60,7 +67,7 @@ export default function Connection() {
       })
       .catch(console.error);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.id]);
+  }, [params.id, connection.id]);
 
   return (
     <>
@@ -172,20 +179,37 @@ export default function Connection() {
                 Save
               </Button>
             ) : (
-              <Button
-                type="default"
-                htmlType="button"
-                onClick={async () => {
-                  try {
-                    await form.resetFields();
-                    setIsEditing(true);
-                  } catch (error) {
-                    console.error(error);
-                  }
-                }}
-              >
-                Edit
-              </Button>
+              <Space align="center">
+                <Button
+                  type="default"
+                  htmlType="button"
+                  onClick={async () => {
+                    try {
+                      await form.resetFields();
+                      setIsEditing(true);
+                    } catch (error) {
+                      console.error(error);
+                    }
+                  }}
+                >
+                  Edit
+                </Button>
+                <Button
+                  icon={<DeleteOutlined />}
+                  danger
+                  onClick={async () => {
+                    try {
+                      connection.id && (await window.connections.delete(connection.id!));
+                      await setRecent();
+                      navigate(`/`);
+                    } catch (error) {
+                      console.error(error);
+                    }
+                  }}
+                >
+                  Delete
+                </Button>
+              </Space>
             )}
           </Space>
         </Form.Item>

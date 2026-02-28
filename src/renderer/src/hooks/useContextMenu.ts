@@ -1,4 +1,4 @@
-import { useEffect, DependencyList } from 'react';
+import { useEffect, DependencyList, useCallback } from 'react';
 import { IpcChannels } from '@shared/rpc-channels';
 import type { IpcRendererEvent } from 'electron';
 
@@ -7,12 +7,12 @@ const useContextMenu = <T>(
   channels: string[] | string,
   deps?: DependencyList,
 ): T | undefined | void => {
-  const handleContextMenuClick = async (
-    _event: IpcRendererEvent,
-    message: { id: string },
-  ): Promise<void | boolean> => {
-    return channels.includes(message.id) && callback(message as T);
-  };
+  const handleContextMenuClick = useCallback(
+    (_event: IpcRendererEvent, message: { id: string }) => {
+      return channels.includes(message.id) && callback(message as T);
+    },
+    [callback, channels],
+  );
   useEffect(() => {
     const removeListener = window.electron.ipcRenderer.on(
       IpcChannels.APP_CONTEXT_MENU_CLICK,
@@ -21,8 +21,7 @@ const useContextMenu = <T>(
     return () => {
       removeListener();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deps]);
+  }, [deps, handleContextMenuClick]);
 
   return;
 };

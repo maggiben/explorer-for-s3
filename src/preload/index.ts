@@ -4,6 +4,7 @@ import ipc from '../shared/constants/ipc';
 import { ISettings } from '../types/ISettings';
 import { IConnection } from '../types/IConnection';
 import type { IpcRendererEvent } from 'electron';
+import type { IBucket } from '../types/IBucket';
 // Custom APIs for renderer
 const api = {
   getFilePath: (file: File): string => webUtils.getPathForFile(file),
@@ -33,13 +34,21 @@ if (process.contextIsolated) {
           .invoke(ipc.MAIN_API, { command: 'connections:add', connection })
           .then(({ results, ack }) => ack && results.shift())
           .then(({ result, ack }) => ack && result),
+      delete: (id: number): Promise<void> =>
+        ipcRenderer
+          .invoke(ipc.MAIN_API, { command: 'connections:delete', id })
+          .then(({ results, ack }) => ack && results.shift())
+          .then(({ result, ack }) => ack && result),
       get: (id: number): Promise<IConnection> =>
         ipcRenderer
           .invoke(ipc.MAIN_API, { command: 'connections:get', id })
-          .then(({ results, ack }) => ack && results.shift())
-          .then(({ result, ack }) => ack && result),
+          .then(({ results, ack, nak }) => !nak && ack && results.shift())
+          .then(({ result, ack, nak }) => !nak && ack && result),
       getAll: (): Promise<IConnection[]> =>
-        ipcRenderer.invoke(ipc.MAIN_API, { command: 'connections:getAll' }),
+        ipcRenderer
+          .invoke(ipc.MAIN_API, { command: 'connections:getAll' })
+          .then(({ results, ack, nak }) => !nak && ack && results.shift())
+          .then(({ result, ack, nak }) => !nak && ack && result),
       getRecent: (): Promise<IConnection[]> =>
         ipcRenderer
           .invoke(ipc.MAIN_API, { command: 'connections:getRecent' })
@@ -52,6 +61,28 @@ if (process.contextIsolated) {
       upsert: (connection: IConnection): Promise<IConnection> =>
         ipcRenderer
           .invoke(ipc.MAIN_API, { command: 'connections:upsert', connection })
+          .then(({ results, ack }) => ack && results.shift())
+          .then(({ result, ack }) => ack && result),
+    });
+    contextBridge.exposeInMainWorld('buckets', {
+      add: (bucket: IBucket): Promise<IBucket> =>
+        ipcRenderer
+          .invoke(ipc.MAIN_API, { command: 'buckets:add', bucket })
+          .then(({ results, ack }) => ack && results.shift())
+          .then(({ result, ack }) => ack && result),
+      get: (id: number): Promise<IBucket> =>
+        ipcRenderer
+          .invoke(ipc.MAIN_API, { command: 'buckets:get', id })
+          .then(({ results, ack }) => ack && results.shift())
+          .then(({ result, ack }) => ack && result),
+      getAll: (): Promise<IBucket[]> =>
+        ipcRenderer
+          .invoke(ipc.MAIN_API, { command: 'buckets:getAll' })
+          .then(({ results, ack }) => ack && results?.shift())
+          .then(({ result, ack }) => ack && result),
+      upsert: (bucket: IBucket): Promise<IBucket> =>
+        ipcRenderer
+          .invoke(ipc.MAIN_API, { command: 'buckets:upsert', bucket })
           .then(({ results, ack }) => ack && results.shift())
           .then(({ result, ack }) => ack && result),
     });

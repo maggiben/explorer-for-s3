@@ -101,7 +101,17 @@ export async function get(
     return json ? settings.toJSON() : settings;
   } catch (error) {
     console.error(error);
-    return undefined;
+    throw error;
+  }
+}
+
+export async function remove(id: number) {
+  try {
+    await Connections.destroy({ where: { id } });
+    return;
+  } catch (error) {
+    console.error(error);
+    return Promise.reject(error);
   }
 }
 

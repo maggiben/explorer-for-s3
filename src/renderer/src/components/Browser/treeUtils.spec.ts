@@ -73,7 +73,15 @@ describe('treeUtils', () => {
   describe('replaceNodeInTree', () => {
     it('replaces node at pathKey', () => {
       const roots: DataType[] = [
-        { id: '1', path: 'a', type: FOLDER, size: 0, lastModified: new Date(0), storageClass: '', children: [] },
+        {
+          id: '1',
+          path: 'a',
+          type: FOLDER,
+          size: 0,
+          lastModified: new Date(0),
+          storageClass: '',
+          children: [],
+        },
       ];
       const newNode: DataType = {
         id: '1-new',
@@ -105,7 +113,15 @@ describe('treeUtils', () => {
     });
     it('adds node under parent', () => {
       const roots: DataType[] = [
-        { id: 'a', path: 'a', type: FOLDER, size: 0, lastModified: new Date(0), storageClass: '', children: [] },
+        {
+          id: 'a',
+          path: 'a',
+          type: FOLDER,
+          size: 0,
+          lastModified: new Date(0),
+          storageClass: '',
+          children: [],
+        },
       ];
       const node: DataType = {
         id: 'b',

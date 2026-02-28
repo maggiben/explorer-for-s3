@@ -7,6 +7,10 @@ import {
   ScissorOutlined,
   CopyFilled,
 } from '@ant-design/icons';
+import { AiOutlineSave } from 'react-icons/ai';
+import { useState } from 'react';
+import SaveBucketModal from '../SaveBucketModal';
+import { IBucket } from '../../../../types/IBucket';
 
 interface DataType {
   id: string;
@@ -25,9 +29,13 @@ export default function FileToolbar({
   refreshList,
 }: {
   selected: DataType[];
-  connectionId?: number;
+  connectionId: number;
   refreshList: (connectionId: number) => Promise<void>;
 }) {
+  const [showSaveBucketModal, setShowSaveBucketModal] = useState(false);
+  const handleSaveBucketModal = () => {
+    setShowSaveBucketModal(true);
+  };
   const handleDelete = async () => {
     if (!connectionId) return;
     try {
@@ -61,23 +69,46 @@ export default function FileToolbar({
   };
 
   return (
-    <Flex wrap gap="small" align="center">
-      <Space.Compact>
-        <Button icon={<PlusOutlined />} onClick={handleCreateFolder}></Button>
-        <Button icon={<DeleteOutlined />} shape="square" danger onClick={handleDelete}></Button>
-      </Space.Compact>
-      <Divider vertical />
-      <Space.Compact>
-        <Button icon={<ScissorOutlined />}></Button>
-        <Button icon={<CopyOutlined />}></Button>
-        <Button icon={<CopyFilled />}></Button>
-      </Space.Compact>
-      <Flex justify="end" flex={1}>
+    <>
+      <Flex wrap gap="small" align="center">
         <Space.Compact>
-          <Input defaultValue="" />
-          <Button icon={<SearchOutlined />} onClick={handleSearch}></Button>
+          <Button icon={<PlusOutlined />} onClick={handleCreateFolder}></Button>
+          <Button icon={<DeleteOutlined />} shape="square" danger onClick={handleDelete}></Button>
         </Space.Compact>
+        <Divider vertical />
+        <Space.Compact>
+          <Button icon={<ScissorOutlined />}></Button>
+          <Button icon={<CopyOutlined />}></Button>
+          <Button icon={<CopyFilled />}></Button>
+        </Space.Compact>
+        <Space.Compact>
+          <Button icon={<AiOutlineSave />} onClick={handleSaveBucketModal}>
+            Save To
+          </Button>
+        </Space.Compact>
+        <Flex justify="end" flex={1}>
+          <Space.Compact>
+            <Input defaultValue="" />
+            <Button icon={<SearchOutlined />} onClick={handleSearch}></Button>
+          </Space.Compact>
+        </Flex>
       </Flex>
-    </Flex>
+      <SaveBucketModal
+        open={showSaveBucketModal}
+        onClose={async (value) => {
+          console.log('value', value);
+          if (value) {
+            const bucket = await window.buckets.get(value);
+            const result = await window.buckets.upsert({
+              ...bucket,
+              connectionIds: [...bucket.connectionIds, connectionId!],
+            } as IBucket);
+            console.log('result', result);
+          }
+          setShowSaveBucketModal(false);
+        }}
+        connectionId={connectionId}
+      />
+    </>
   );
 }

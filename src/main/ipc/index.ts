@@ -1,16 +1,16 @@
 import os from 'os';
 import path from 'path';
 import { app, ipcMain, IpcMainInvokeEvent, nativeTheme } from 'electron';
-import ipc from '../../shared/constants/ipc';
+import ipc from '@shared/constants/ipc';
 import * as Settings from '../ipc/settings';
 import SettingsModel from '../models/data/settings-model';
 import * as Buckets from '../ipc/buckets';
 import * as Connections from '../ipc/connections';
 import * as Objects from '../ipc/objects';
 import { syncObjectsFromS3 } from '../../main/common/s3';
-import { IConnection } from 'types/IConnection';
+import type { IConnection } from 'types/IConnection';
+import type { IBucket } from 'types/IBucket';
 
-type TBucketCommands = 'buckets:add' | 'buckets:getAll';
 type TConnectionCommands = 'connections:add' | 'connections:getAll';
 type TSettingsCommands = 'settings:add' | 'settings:getAll';
 type TObjectCommands =
@@ -20,8 +20,14 @@ type TObjectCommands =
   | 'objects:downloadObjects'
   | 'objects:abortDownloadObjects'
   | 'objects:copyObjects';
+type TBucketCommands = 'buckets:add' | 'buckets:getAll' | 'buckets:get' | 'buckets:upsert';
 interface IMessage {
-  command: TBucketCommands | TSettingsCommands | TConnectionCommands | TObjectCommands;
+  command:
+    | TBucketCommands
+    | TSettingsCommands
+    | TConnectionCommands
+    | TObjectCommands
+    | TBucketCommands;
   connection?: IConnection;
   settings?: ReturnType<SettingsModel['toJSON']>;
   id?: number;
@@ -39,6 +45,7 @@ interface IMessage {
   keyword?: string;
   after?: number;
   limit?: number;
+  bucket?: IBucket;
 }
 (async (ts: number) => {
   try {
@@ -64,6 +71,19 @@ interface IMessage {
                       result,
                       ack: new Date().getTime(),
                     };
+                  }
+                  case 'delete': {
+                    if (!arg.id) break;
+                    try {
+                      await Connections.remove(arg.id);
+                      return {
+                        result: true,
+                        ack: new Date().getTime(),
+                      };
+                    } catch (error) {
+                      console.error(error);
+                      break;
+                    }
                   }
                   case 'upsert': {
                     try {
@@ -314,6 +334,43 @@ interface IMessage {
                     break;
                   }
                   default:
+                    break;
+                }
+                break;
+              }
+              case 'buckets': {
+                switch (action) {
+                  case 'add': {
+                    if (!arg.bucket) break;
+                    try {
+                      const result = await Buckets.create(arg.bucket);
+                      return { result, ack: new Date().getTime() };
+                    } catch (error) {
+                      console.error(error);
+                      break;
+                    }
+                  }
+                  case 'get': {
+                    if (!arg.id) break;
+                    try {
+                      const result = await Buckets.get(arg.id, true);
+                      return { result, ack: new Date().getTime() };
+                    } catch (error) {
+                      console.error(error);
+                      break;
+                    }
+                  }
+                  case 'getAll': {
+                    const result = await Buckets.getAll();
+                    return { result, ack: new Date().getTime() };
+                  }
+                  case 'upsert': {
+                    if (!arg.bucket) break;
+                    const result = await Buckets.upsert(arg.bucket);
+                    return { result, ack: new Date().getTime() };
+                  }
+                  default:
+                    console.log('bad action');
                     break;
                 }
                 break;

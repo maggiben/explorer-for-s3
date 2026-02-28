@@ -1,56 +1,105 @@
 import React from 'react';
-import { ClockCircleOutlined, FolderOutlined, HomeOutlined } from '@ant-design/icons';
-import { Routes, Route, HashRouter, Link } from 'react-router';
-import type { MenuProps } from 'antd';
-import { ConfigProvider, Breadcrumb, Layout, Menu, theme } from 'antd';
+import { HomeOutlined } from '@ant-design/icons';
+import { Routes, Route, HashRouter, Link, useLocation } from 'react-router';
+import { ConfigProvider, Breadcrumb, Layout, theme, Space } from 'antd';
 import type { SiderTheme } from 'antd/es/layout/Sider';
 import { useAtom } from 'jotai';
 import { settingsAtom } from './atoms/settings';
-import useRecent from './hooks/useRecent';
 
 import Connection from './components/Connection/Connection';
 import Browser from './components/Browser/Browser';
 import Welcome from './components/Welcome';
 import { mergeDeep } from '../../shared/lib/utils';
+import SiderMenu from './components/SiderMenu';
+import { useBuckets } from './atoms/buckets';
+import { useConnections } from './atoms/connection';
+import type { IBucket } from '../../types/IBucket';
+import type { IConnection } from '../../types/IConnection';
 
 const { Content, Sider } = Layout;
 
-// const settings: MenuProps['items'] = [UserOutlined].map((icon, index) => {
-//   const key = String(index + 1);
-//   return {
-//     key: `sub${key}`,
-//     icon: React.createElement(icon),
-//     label: `subnav ${key}`,
-//     children: Array.from({ length: 4 }).map((_, j) => {
-//       const subKey = index * 4 + j + 1;
-//       return {
-//         key: subKey,
-//         label: `option${subKey}`,
-//       };
-//     }),
-//   };
-// });
+/** Segment-to-label map for breadcrumb; unknown segments (e.g. ids) shown as-is. */
+const SEGMENT_LABELS: Record<string, string> = {
+  connections: 'Connections',
+  new: 'New Connection',
+  browse: 'Browse',
+  recent: 'Recent',
+  motd: 'MOTD',
+  s3: 'S3',
+};
 
-function createRecentMenu(connections: { bucket: string; id: number }[]): MenuProps['items'] {
-  const menu = [
+function BreadcrumbNav({
+  buckets,
+  connections,
+}: {
+  buckets: IBucket[];
+  connections: IConnection[];
+}) {
+  const location = useLocation();
+  const pathname = location.pathname || '/';
+  const segments = pathname.split('/').filter(Boolean);
+
+  const items = [
     {
-      icon: ClockCircleOutlined,
-      label: 'Recent',
+      title: (
+        <Link
+          to="/"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          <HomeOutlined />
+          <span>Home</span>
+        </Link>
+      ),
     },
-  ].map(({ icon, label }, index) => {
-    const key = String(index + 1);
-    return {
-      key: `sub${key}`,
-      icon: React.createElement(icon),
-      label,
-      children: connections.map(({ bucket, id }, j) => ({
-        key: `subx${index * 4 + j + 1}`,
-        label: <Link to={`/new/${id}`}>{bucket}</Link>,
-        icon: React.createElement(FolderOutlined),
-      })),
-    };
-  });
-  return menu;
+    ...segments.map((segment, i) => {
+      const href = '/' + segments.slice(0, i + 1).join('/');
+      const label = SEGMENT_LABELS[segment] ?? segment;
+      if (segments[i - 1] === 'connections' || segments[i - 1] === 'recent') {
+        const bucket = buckets.find((bucket) => bucket.id === parseInt(segment, 10));
+        if (bucket) {
+          return {
+            title: <span>{bucket.name}</span>,
+          };
+        }
+      }
+      if (segments[i - 2] === 'connections' || segments[i - 2] === 'recent') {
+        const connection = connections.find(
+          (connection) => connection.id === parseInt(segment, 10),
+        );
+        if (connection) {
+          return {
+            title: <span>{connection.bucket}</span>,
+          };
+        }
+      }
+      if (segments[i - 1] === 'browse') {
+        const connection = connections.find(
+          (connection) => connection.id === parseInt(segment, 10),
+        );
+        if (connection) {
+          return {
+            title: <span>{connection.bucket}</span>,
+          };
+        }
+      }
+      if (segment === 'buckets') {
+        return {
+          title: <Link to={href}>{label}</Link>,
+        };
+      }
+      const isLast = i === segments.length - 1;
+      return {
+        // title: isLast ? <span>{label}</span> : <Link to={href}>{label}</Link>,
+        title: <span>{label}</span>,
+      };
+    }),
+  ];
+
+  return <Breadcrumb items={items} style={{ margin: '16px 0' }} />;
 }
 
 export default function RootLayout({
@@ -59,7 +108,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const [settings, setSettings] = useAtom(settingsAtom);
-  const [recent] = useRecent();
+  const { buckets } = useBuckets();
+  const { connections } = useConnections();
   const algorithm = settings.apparence.mode === 'dark' ? [theme.darkAlgorithm] : [];
   return (
     <HashRouter>
@@ -87,60 +137,18 @@ export default function RootLayout({
                 setSettings(newSettings);
               }}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  height: '100%',
-                }}
-              >
-                <Menu
-                  mode="inline"
-                  defaultSelectedKeys={['1']}
-                  defaultOpenKeys={[]}
-                  style={{ height: '100%', borderInlineEnd: 0 }}
-                  items={
-                    recent?.length
-                      ? createRecentMenu(recent as { bucket: string; id: number }[])
-                      : []
-                  }
-                />
-                {/* <Menu
-                  mode="inline"
-                  defaultSelectedKeys={['1']}
-                  defaultOpenKeys={[]}
-                  style={{ height: '100%', borderInlineEnd: 0, alignContent: 'end' }}
-                  items={settings}
-                /> */}
-              </div>
+              <Space vertical style={{ width: '100%' }}>
+                <SiderMenu onSelect={(key) => console.log('key', key)} />
+              </Space>
             </Sider>
             <Layout style={{ padding: '0 24px 24px' }}>
-              <Breadcrumb
-                items={[
-                  {
-                    title: (
-                      <Link
-                        to="/"
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 6,
-                        }}
-                      >
-                        <HomeOutlined />
-                        <span>Home</span>
-                      </Link>
-                    ),
-                  },
-                ]}
-                style={{ margin: '16px 0' }}
-              />
+              <BreadcrumbNav buckets={buckets} connections={connections} />
               <Content>
                 <Routes>
                   <Route index path="/" element={<Welcome />} />
                   <Route path="/new" element={<Connection />} />
-                  <Route path="/new/:id" element={<Connection />} />
+                  <Route path="/connections/:bucket/:id" element={<Connection />} />
+                  <Route path="/connections/recent/:id" element={<Connection />} />
                   <Route path="/browse" element={<Browser />} />
                   <Route path="/browse/:id" element={<Browser />} />
                   <Route path="/motd" element={children} />

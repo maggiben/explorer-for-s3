@@ -415,6 +415,16 @@ export function debounce<T extends unknown[], U>(
   };
 }
 
+export function getRandomHexColor(): string {
+  return ([[6, '0123456789ABCDEF']] as Array<[number, string]>)
+    .map(([length, letters]) =>
+      Array.from({ length }, () => Math.floor(Math.random() * letters.length))
+        .map((digit) => letters[digit])
+        .join(''),
+    )
+    .reduce((color, digits) => color.concat(digits), '#');
+}
+
 /**
  * Perform a deep clone of an object or array compatible with JSON stringification.
  * Object fields that are not compatible with stringification will be omitted. Array

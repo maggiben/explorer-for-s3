@@ -16,14 +16,14 @@ export async function create({
   name,
   color,
   icon,
-  bucketIds,
+  connectionIds,
 }: {
   id?: number;
   type: string;
   name: string;
   color: string;
   icon: string;
-  bucketIds: number[];
+  connectionIds: number[];
 }): Promise<ReturnType<Buckets['toJSON']> | undefined> {
   try {
     const buckets = await Buckets.create({
@@ -31,7 +31,7 @@ export async function create({
       name,
       color,
       icon,
-      bucketIds,
+      connectionIds,
     });
     if (!buckets) {
       throw new Error('failed to get buckets');
@@ -49,14 +49,14 @@ export async function upsert({
   name,
   color,
   icon,
-  bucketIds,
+  connectionIds,
 }: {
   id?: number;
   type: string;
   name: string;
   color: string;
   icon: string;
-  bucketIds: number[];
+  connectionIds: number[];
 }): Promise<InferAttributes<Buckets>> {
   try {
     await Buckets.upsert({
@@ -65,7 +65,7 @@ export async function upsert({
       name,
       color,
       icon,
-      bucketIds,
+      connectionIds,
     });
     const buckets = await Buckets.findOne({ where: { id } });
     if (!buckets) {
@@ -78,17 +78,20 @@ export async function upsert({
   }
 }
 
-export async function get(id?: number): Promise<Buckets> {
+export async function get(
+  id?: number,
+  json = true,
+): Promise<Buckets | ReturnType<Buckets['toJSON']>> {
   try {
     const buckets = await Buckets.findOne({ where: { id: id } });
 
     if (!buckets) {
       throw new Error('failed to get buckets');
     }
-    return buckets;
+    return json ? buckets.toJSON() : buckets;
   } catch (error) {
     console.error(error);
-    return Promise.reject(error);
+    throw error;
   }
 }
 
@@ -102,6 +105,6 @@ export async function getAll(): Promise<ReturnType<Buckets['toJSON']>[] | undefi
     return buckets.map((bucket) => bucket.toJSON());
   } catch (error) {
     console.error(error);
-    return undefined;
+    throw error;
   }
 }

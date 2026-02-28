@@ -7,7 +7,7 @@ import type {
   MessageBoxReturnValue,
 } from 'electron';
 import { IConnection } from 'src/types/IConnection';
-
+import type { IBucket } from '@types/IBucket';
 export declare global {
   interface Window {
     electron: ElectronAPI;
@@ -29,11 +29,18 @@ export declare global {
     };
     connections: {
       add: (connection: IConnection) => Promise<IConnection>;
+      delete: (id: number) => Promise<void>;
       get: (id: number) => Promise<IConnection>;
       getAll: () => Promise<IConnection[]>;
       getRecent: () => Promise<IConnection[]>;
       connect: (id: number) => Promise<void>;
       upsert: (connection: IConnection) => Promise<IConnection>;
+    };
+    buckets: {
+      add: (bucket: IBucket) => Promise<IBucket>;
+      get: (id: number) => Promise<IBucket>;
+      getAll: () => Promise<IBucket[]>;
+      upsert: (bucket: IBucket) => Promise<IBucket>;
     };
     objects: {
       getObjects: (opts: {

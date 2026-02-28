@@ -16,7 +16,7 @@ class Buckets extends Model<InferAttributes<Buckets>, InferCreationAttributes<Bu
   declare color: CreationOptional<string>;
   declare icon: CreationOptional<string>;
   declare name: CreationOptional<string>;
-  declare bucketIds: CreationOptional<number[]>;
+  declare connectionIds: CreationOptional<number[]>;
 
   override toJSON() {
     const result = mergeDeep(this.get({ plain: true }));
@@ -29,8 +29,9 @@ Buckets.init(
   {
     id: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       primaryKey: true,
+      autoIncrement: true,
     },
     type: {
       type: DataTypes.STRING,
@@ -48,18 +49,24 @@ Buckets.init(
     },
     name: {
       type: DataTypes.STRING,
+      unique: true,
       allowNull: false,
     },
-    bucketIds: {
+    connectionIds: {
       type: DataTypes.JSON,
-      allowNull: false,
+      allowNull: true,
       defaultValue: [],
     },
   },
   {
     sequelize,
     modelName: 'buckets',
-    indexes: [],
+    indexes: [
+      {
+        unique: true,
+        fields: ['name'],
+      }
+    ],
   },
 );
 

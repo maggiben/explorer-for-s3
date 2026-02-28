@@ -20,7 +20,7 @@ export default function Browser() {
   const [data, setData] = useState<Omit<DataType, 'children'>[]>([]);
   const [selected, setSelected] = useState<DataType[]>([]);
   const [api, contextHolder] = notification.useNotification();
-  const connectionId = params.id ? parseInt(params.id, 10) : undefined;
+  const connectionId = parseInt(params.id!, 10);
   const dragUrlRef = useRef<{ path: string; url: string } | null>(null);
 
   const refreshList = useCallback((id?: number): Promise<void> => {

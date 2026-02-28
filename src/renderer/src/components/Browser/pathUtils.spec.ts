@@ -2,13 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect } from 'vitest';
-import {
-  basename,
-  normalizePath,
-  getParentPath,
-  getPathPrefixes,
-  S3_SEP,
-} from './pathUtils';
+import { basename, normalizePath, getParentPath, getPathPrefixes, S3_SEP } from './pathUtils';
 
 describe('pathUtils', () => {
   describe('basename', () => {
